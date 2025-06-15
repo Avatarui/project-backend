@@ -32,31 +32,57 @@ export const register = async (req: Request, res: Response) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { username, password, usertype }: UserRegister = req.body;
+    const { email, password, username, birthday } = req.body;
+    const file = req.file;
 
-    // Check if user already exists
-    const existingUser = await UserModel.findByUsername(username);
-    if (existingUser) {
-      return res.status(400).json({ message: 'Username already exists' });
+    // สร้าง user ใน Firebase Auth
+    const userRecord = await admin.auth().createUser({
+      email,
+      password,
+      displayName: username,
+    });
+
+    let photoURL = '';
+
+    // ถ้ามีไฟล์ภาพ อัปโหลดไป Firebase Storage
+    if (file) {
+      const bucket = admin.storage().bucket();
+      const fileName = `profileImages/${userRecord.uid}_${Date.now()}`;
+
+      const fileUpload = bucket.file(fileName);
+
+      // อัปโหลดไฟล์จาก buffer
+      await fileUpload.save(file.buffer, {
+        metadata: {
+          contentType: file.mimetype,
+        },
+      });
+
+      // ตั้ง public access ให้ไฟล์นี้
+      await fileUpload.makePublic();
+
+      // ได้ URL ของรูปที่อัปโหลด
+      photoURL = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create user
-    const userId = await UserModel.create({
-      username,
-      password: hashedPassword,
-      usertype: usertype || "member" 
+    // บันทึกข้อมูลเสริมใน Firestore
+    await admin.firestore().collection('users').doc(userRecord.uid).set({
+      email,
+      name: username,
+      birthday,
+      photoURL,
+      role: 'member',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     res.status(201).json({
       message: 'User registered successfully',
-      userId
+      uid: userRecord.uid,
+      photoURL,
     });
-  } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+  } catch (error: any) {
+    console.error('Register error:', error);
+    res.status(500).json({ message: error.message || 'Internal server error' });
   }
 };
 
@@ -67,33 +93,75 @@ export const adminRegister = async (req: Request, res: Response) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { username, password, usertype }: UserRegister = req.body;
+    const { email, password, username } = req.body;
 
-    // Check if user already exists
-    const existingUser = await UserModel.findByUsername(username);
-    if (existingUser) {
-      return res.status(400).json({ message: 'Username already exists' });
-    }
+    // ✅ สร้างผู้ใช้ใน Firebase Auth
+    const userRecord = await admin.auth().createUser({
+      email,
+      password,
+      displayName: username,
+    });
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create user
-    const userId = await UserModel.create({
-      username,
-      password: hashedPassword,
-      usertype: usertype || "admin" 
+    // ✅ เพิ่มข้อมูลเสริมใน Firestore ถ้าต้องการ
+    await admin.firestore().collection('users').doc(userRecord.uid).set({
+      email,
+      name: username,
+      photoURL: userRecord.photoURL || '',
+      role: 'admin',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     res.status(201).json({
       message: 'User registered successfully',
-      userId
+      uid: userRecord.uid,
     });
-  } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+  } catch (error: any) {
+    console.error('Register error:', error);
+    res.status(500).json({ message: error.message || 'Internal server error' });
   }
 };
+// controller/authController.ts
+// import { Request, Response } from 'express';
+// import admin from 'firebase-admin';
+
+export const verifyToken = async (req: Request, res: Response) => {
+  try {
+    const idToken = req.headers.authorization?.split('Bearer ')[1];
+
+    if (!idToken) {
+      return res.status(401).json({ message: 'No token provided' });
+    }
+
+    // ✅ ตรวจสอบ idToken
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const uid = decodedToken.uid;
+
+    // ✅ ตรวจว่ามีผู้ใช้นี้ใน Firestore ไหม
+    const userDoc = await admin.firestore().collection('users').doc(uid).get();
+
+    if (!userDoc.exists) {
+      // 🔥 สร้างเอกสารใหม่ (ข้อมูลมาจาก body)
+      const { email, displayName, photoURL } = req.body;
+
+      await admin.firestore().collection('users').doc(uid).set({
+        email,
+        name: displayName,
+        photoURL,
+        role: 'member',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    res.status(200).json({
+      message: 'Token verified and user exists',
+      uid,
+    });
+  } catch (error) {
+    console.error('Token verification error:', error);
+    res.status(401).json({ message: 'Invalid or expired token' });
+  }
+};
+
 
 export const login = async (req: Request, res: Response) => {
   try {
