@@ -1,13 +1,13 @@
 import { Router } from 'express';
 import {
   register,
-  login,
+  // loginWithEmail,
   getProfile,
   getAllUsers,
   registerValidation,
   loginValidation,
-  adminRegister,
-  verifyToken
+  adminRegister,login,
+  loginwithgoogle
 } from '../controller/authController';
 import { authenticateToken, requireAdmin } from '../middleware/auth';
 import multer from 'multer';
@@ -21,6 +21,7 @@ const router = Router();
 
 // Public routes
 // router.post('/register', registerValidation, register);
+router.post('/login', loginValidation, login);
 
 router.post('/adminregister', registerValidation, adminRegister);
 router.post(
@@ -30,8 +31,8 @@ router.post(
   register                        // controller ที่แก้ไขแล้ว
 );
 
-router.post('/login', loginValidation, login);
-router.post('/verify-token', verifyToken);
+// router.post('/loginwithemail', loginValidation, loginWithEmail);
+router.post('/loginwithgoogle', loginwithgoogle);
 // Protected routes
 router.get('/profile', authenticateToken, getProfile);
 router.get('/users', authenticateToken, requireAdmin, getAllUsers);

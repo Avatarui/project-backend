@@ -4,13 +4,18 @@ import jwt from 'jsonwebtoken';
 import { body, validationResult } from 'express-validator';
 import { UserLogin, UserRegister } from '../types/user';
 import router from '../route/auth';
-import admin from 'firebase-admin';
+import admin, { auth } from 'firebase-admin';
 import { UserModel } from '../model/User';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+// import { auth } from '../config/firebase';
 
 export const registerValidation = [
   body('username')
     .isLength({ min: 3, max: 50 })
     .withMessage('Username must be between 3 and 50 characters'),
+    body('email')
+    .isLength({ min: 3, max: 50 })
+    .withMessage('Email must be between 3 and 50 characters'),
   body('password')
     .isLength({ min: 6 })
     .withMessage('Password must be at least 6 characters long'),
@@ -21,7 +26,7 @@ export const registerValidation = [
 ];
 
 export const loginValidation = [
-  body('username').notEmpty().withMessage('Username is required'),
+  body('email').notEmpty().withMessage('Email is required'),
   body('password').notEmpty().withMessage('Password is required')
 ];
 
@@ -106,7 +111,7 @@ export const adminRegister = async (req: Request, res: Response) => {
     await admin.firestore().collection('users').doc(userRecord.uid).set({
       email,
       name: username,
-      photoURL: userRecord.photoURL || '',
+      // photoURL: userRecord.photoURL || '',
       role: 'admin',
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
@@ -120,11 +125,50 @@ export const adminRegister = async (req: Request, res: Response) => {
     res.status(500).json({ message: error.message || 'Internal server error' });
   }
 };
-// controller/authController.ts
-// import { Request, Response } from 'express';
-// import admin from 'firebase-admin';
+interface JwtPayload {
+  userId: string;
+  usertype: string; // เพิ่ม usertype เข้าไปใน Token
+  // เพิ่ม field อื่นๆ ที่ต้องการ
+}
+export const login = async (req: Request, res: Response) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
 
-export const verifyToken = async (req: Request, res: Response) => {
+  const { email, password } = req.body;
+
+  try {
+    const userRecord = await admin.auth().getUserByEmail(email);
+
+    // แก้ไขตรงนี้:
+    const userDoc = await admin.firestore().collection('users').doc(userRecord.uid).get();
+    let usertype = 'member'; // Default value
+
+    if (userDoc.exists && userDoc.data()?.role) { // แก้ไขบรรทัด 145
+        usertype = userDoc.data()!.role; // แก้ไขบรรทัด 146: ใช้ non-null assertion (!) หรือดึงค่ามาก่อน
+    }
+   
+    const payload: JwtPayload = {
+      userId: userRecord.uid,
+      usertype: usertype,
+    };
+
+    const token = jwt.sign(payload, process.env.JWT_SECRET!, { expiresIn: '1h' });
+
+    res.status(200).json({ message: 'Login successful', token });
+
+  } catch (error: any) {
+    console.error('Login error:', error);
+    if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+
+export const loginwithgoogle = async (req: Request, res: Response) => {
   try {
     const idToken = req.headers.authorization?.split('Bearer ')[1];
 
@@ -132,29 +176,37 @@ export const verifyToken = async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'No token provided' });
     }
 
-    // ✅ ตรวจสอบ idToken
+    // ✅ ตรวจสอบ token
     const decodedToken = await admin.auth().verifyIdToken(idToken);
     const uid = decodedToken.uid;
 
-    // ✅ ตรวจว่ามีผู้ใช้นี้ใน Firestore ไหม
-    const userDoc = await admin.firestore().collection('users').doc(uid).get();
+    const usersRef = admin.firestore().collection('users');
+    const userDoc = await usersRef.doc(uid).get();
 
+    // ✅ ถ้า user ยังไม่อยู่ใน Firestore → สร้างใหม่
     if (!userDoc.exists) {
-      // 🔥 สร้างเอกสารใหม่ (ข้อมูลมาจาก body)
       const { email, displayName, photoURL } = req.body;
 
-      await admin.firestore().collection('users').doc(uid).set({
-        email,
-        name: displayName,
-        photoURL,
+      const newUser = {
+        userId: uid,
+        username: displayName || '',
+        email: email || '',
+        password: '', // ใช้เฉพาะ email-register เท่านั้น
+        birthday: '',
+        telephone: '',
         role: 'member',
+        photoURL: photoURL || '',
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+      };
+
+      await usersRef.doc(uid).set(newUser);
     }
+
+    const userData = (await usersRef.doc(uid).get()).data();
 
     res.status(200).json({
       message: 'Token verified and user exists',
-      uid,
+      user: userData,
     });
   } catch (error) {
     console.error('Token verification error:', error);
@@ -163,48 +215,6 @@ export const verifyToken = async (req: Request, res: Response) => {
 };
 
 
-export const login = async (req: Request, res: Response) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const { username, password }: UserLogin = req.body;
-
-    // Find user
-    const user = await UserModel.findByUsername(username);
-    if (!user) {
-      return res.status(401).json({ message: 'Invalid credentials' });
-    }
-
-    // Check password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return res.status(401).json({ message: 'Invalid credentials' });
-    }
-
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: user.userID, username: user.username, usertype: user.usertype },
-      process.env.JWT_SECRET!,
-      { expiresIn: '24h' }
-    );
-
-    res.json({
-      message: 'Login successful',
-      token,
-      user: {
-        userID: user.userID,
-        username: user.username,
-        usertype: user.usertype
-      }
-    });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-};
 
 export const getProfile = async (req: any, res: Response) => {
   try {
@@ -249,58 +259,3 @@ export const getAllUsers = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
-
-// router.post('/verify-token', async (req, res) => {
-//   const authHeader = req.headers.authorization;
-//   if (!authHeader?.startsWith('Bearer ')) {
-//     return res.status(401).json({ error: 'Missing or invalid Authorization header' });
-//   }
-
-//   const idToken = authHeader.split('Bearer ')[1];
-
-//   try {
-//     // ✅ ตรวจสอบ Token
-//     const decoded = await admin.auth().verifyIdToken(idToken);
-//     const uid = decoded.uid;
-//     const email = decoded.email;
-//     const name = decoded.name || '';
-//     const photoURL = decoded.picture || '';
-
-//     // ✅ อัปเดต / สร้างข้อมูลใน Firestore
-//     const userRef = admin.firestore().collection('users').doc(uid);
-//     const userSnap = await userRef.get();
-
-//     if (!userSnap.exists) {
-//       // 👤 ถ้ายังไม่มี user ในฐานข้อมูล
-//       await userRef.set({
-//         email,
-//         name,
-//         photoURL,
-//         role: 'member', // ค่าเริ่มต้น
-//         createdAt: admin.firestore.FieldValue.serverTimestamp(),
-//       });
-//     } else {
-//       // 👁 อัปเดตข้อมูลที่เปลี่ยน เช่น ชื่อ/รูป
-//       await userRef.update({
-//         email,
-//         name,
-//         photoURL,
-//         lastLogin: admin.firestore.FieldValue.serverTimestamp(),
-//       });
-//     }
-
-//     const userDoc = await userRef.get();
-//     const userData = userDoc.data();
-
-//     return res.status(200).json({
-//       uid,
-//       email,
-//       name,
-//       photoURL,
-//       role: userData?.role || 'member',
-//     });
-//   } catch (err) {
-//     console.error('Token verification failed:', err);
-//     return res.status(401).json({ error: 'Invalid or expired token' });
-//   }
-// });
