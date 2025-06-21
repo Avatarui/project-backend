@@ -7,6 +7,7 @@ import router from '../route/auth';
 import admin, { auth } from 'firebase-admin';
 import { UserModel } from '../model/User';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { log } from 'console';
 // import { auth } from '../config/firebase';
 
 export const registerValidation = [
@@ -130,40 +131,61 @@ interface JwtPayload {
   usertype: string; // เพิ่ม usertype เข้าไปใน Token
   // เพิ่ม field อื่นๆ ที่ต้องการ
 }
-export const login = async (req: Request, res: Response) => {
+export const loginwithemail = async (req: Request, res: Response) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
 
-  const { email, password } = req.body;
+  // รับ Firebase ID Token จาก request body
+  const { idToken } = req.body;
+  console.log(idToken);
+
+  if (!idToken) {
+    return res.status(400).json({ message: 'Firebase ID Token is required.' });
+  }
 
   try {
-    const userRecord = await admin.auth().getUserByEmail(email);
+    // 1. ตรวจสอบ Firebase ID Token ที่ได้รับจาก Client
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const uid = decodedToken.uid; // นี่คือ User ID ที่ได้จาก Firebase Auth
 
-    // แก้ไขตรงนี้:
-    const userDoc = await admin.firestore().collection('users').doc(userRecord.uid).get();
-    let usertype = 'member'; // Default value
+    // 2. ดึงข้อมูลผู้ใช้ (รวมถึง role) จาก Firestore โดยใช้ UID
+    const userDoc = await admin.firestore().collection('users').doc(uid).get();
+    let usertype = 'member'; // ค่าเริ่มต้น
 
-    if (userDoc.exists && userDoc.data()?.role) { // แก้ไขบรรทัด 145
-        usertype = userDoc.data()!.role; // แก้ไขบรรทัด 146: ใช้ non-null assertion (!) หรือดึงค่ามาก่อน
+    if (userDoc.exists && userDoc.data()?.role) {
+      usertype = userDoc.data()!.role; // ดึงค่า role จาก Firestore
     }
-   
+
+    // 3. สร้าง JWT ที่กำหนดเองของคุณ (ถ้าคุณต้องการใช้ JWT สำหรับการยืนยันตัวตนใน API อื่นๆ ของคุณ)
     const payload: JwtPayload = {
-      userId: userRecord.uid,
+      userId: uid,
       usertype: usertype,
     };
+    const customJwt = jwt.sign(payload, process.env.JWT_SECRET!, { expiresIn: '1h' });
 
-    const token = jwt.sign(payload, process.env.JWT_SECRET!, { expiresIn: '1h' });
-
-    res.status(200).json({ message: 'Login successful', token });
+    // 4. ส่ง response กลับไปที่ Flutter App พร้อมกับ role และ JWT ที่สร้างขึ้น
+    res.status(200).json({
+      message: 'เข้าสู่ระบบสำเร็จ',
+      userId: uid,
+      role: usertype, // ส่ง role กลับไปด้วย
+      token: customJwt, // ส่ง JWT ที่สร้างขึ้น (ถ้ามี)
+    });
 
   } catch (error: any) {
-    console.error('Login error:', error);
-    if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-      return res.status(401).json({ message: 'Invalid email or password' });
+    console.error('Backend: Error verifying ID Token or fetching user data:', error);
+
+    // จัดการข้อผิดพลาดเฉพาะที่อาจเกิดขึ้นจากการตรวจสอบ ID Token
+    if (error.code === 'auth/id-token-expired') {
+      return res.status(401).json({ message: 'เซสชันหมดอายุ โปรดเข้าสู่ระบบใหม่' });
+    } else if (error.code === 'auth/invalid-id-token' || error.code === 'auth/argument-error') {
+      return res.status(401).json({ message: 'ID Token ไม่ถูกต้องหรือไม่สมบูรณ์' });
+    } else if (error.code === 'auth/user-not-found') {
+      return res.status(404).json({ message: 'ไม่พบผู้ใช้ที่เกี่ยวข้องกับ Token นี้' });
     }
-    return res.status(500).json({ message: 'Internal server error' });
+    // ข้อผิดพลาดอื่นๆ ที่ไม่คาดคิด
+    return res.status(500).json({ message: 'เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์' });
   }
 };
 
@@ -220,9 +242,14 @@ export const getProfile = async (req: any, res: Response) => {
   try {
     const user = req.user;
     res.json({
-      userID: user.userID,
-      username: user.username,
-      usertype: user.usertype
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName,
+      photoURL: user.photoURL,
+      phoneNumber: user.phoneNumber,
+      providerData: user.providerData,
+      disabled: user.disabled,
+      metadata: user.metadata, 
     });
   } catch (error) {
     console.error('Profile error:', error);

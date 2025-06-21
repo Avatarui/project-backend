@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import {
   register,
-  // loginWithEmail,
+  loginwithemail,
   getProfile,
   getAllUsers,
   registerValidation,
   loginValidation,
-  adminRegister,login,
+  adminRegister,
   loginwithgoogle
 } from '../controller/authController';
 import { authenticateToken, requireAdmin } from '../middleware/auth';
@@ -21,7 +21,7 @@ const router = Router();
 
 // Public routes
 // router.post('/register', registerValidation, register);
-router.post('/login', loginValidation, login);
+// router.post('/login', loginValidation, loginwithemail);
 
 router.post('/adminregister', registerValidation, adminRegister);
 router.post(
@@ -31,7 +31,7 @@ router.post(
   register                        // controller ที่แก้ไขแล้ว
 );
 
-// router.post('/loginwithemail', loginValidation, loginWithEmail);
+router.post('/loginwithemail', loginwithemail);
 router.post('/loginwithgoogle', loginwithgoogle);
 // Protected routes
 router.get('/profile', authenticateToken, getProfile);

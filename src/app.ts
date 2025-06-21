@@ -3,14 +3,24 @@ import cors from "cors";
 import dotenv from "dotenv";
 import authRoutes from "./route/auth";
 import admin from "firebase-admin";
-const serviceAccount = require("../finalproject-609a4-firebase-adminsdk-fbsvc-e4975b201d.json");
+// const serviceAccount = require("../finalproject-609a4-firebase-adminsdk-fbsvc-e4975b201d.json");
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+const serviceAccount = require("../finalproject-609a4-firebase-adminsdk-fbsvc-e4975b201d.json");
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
+    credential: admin.credential.cert(serviceAccount),
+    storageBucket: process.env.FIREBASE_BUCKET,
+  });
+  
+  export const auth = admin.auth();
+  export const db = admin.firestore();
+  export const bucket = admin.storage().bucket();
+// admin.initializeApp({
+//   credential: admin.credential.cert(serviceAccount),
+// });
 // Middleware
 app.use(cors());
 app.use(express.json());
