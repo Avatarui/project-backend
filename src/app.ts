@@ -7,7 +7,7 @@ import admin from "firebase-admin";
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT;
 
 const serviceAccount = require("../finalproject-609a4-firebase-adminsdk-fbsvc-e4975b201d.json");
 admin.initializeApp({
