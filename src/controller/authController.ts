@@ -4,26 +4,27 @@ import jwt from 'jsonwebtoken';
 import { body, validationResult } from 'express-validator';
 import { UserLogin, UserRegister } from '../types/user';
 import router from '../route/auth';
-import admin, { auth } from 'firebase-admin';
+import admin from 'firebase-admin';
 import { UserModel } from '../model/User';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { log } from 'console';
 // import { auth } from '../config/firebase';
 
 export const registerValidation = [
-  body('username')
-    .isLength({ min: 3, max: 50 })
-    .withMessage('Username must be between 3 and 50 characters'),
-    body('email')
-    .isLength({ min: 3, max: 50 })
-    .withMessage('Email must be between 3 and 50 characters'),
+  body('name')
+    .isLength({ min: 3, max: 100 })
+    .withMessage('Name must be between 3 and 100 characters'),
+  body('email')
+    .isEmail()
+    .isLength({ max: 255 })
+    .withMessage('Please provide a valid email'),
   body('password')
     .isLength({ min: 6 })
     .withMessage('Password must be at least 6 characters long'),
   body('usertype')
     .optional()
-    .isIn(['admin', 'member'])
-    .withMessage('User type must be either admin or member')
+    .isLength({ max: 20 })
+    .withMessage('Telephone must not exceed 20 characters')
 ];
 
 export const loginValidation = [
@@ -249,7 +250,7 @@ export const getProfile = async (req: any, res: Response) => {
       phoneNumber: user.phoneNumber,
       providerData: user.providerData,
       disabled: user.disabled,
-      metadata: user.metadata, 
+      metadata: user.metadata,
     });
   } catch (error) {
     console.error('Profile error:', error);
