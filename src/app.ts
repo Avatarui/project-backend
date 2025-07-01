@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import authRoutes from "./route/auth";
 import admin from "firebase-admin";
 import {auth , db , bucket} from "./config/firebase";
-
+import categoryRoutes from "./route/category";
 // const serviceAccount = require("../finalproject-609a4-firebase-adminsdk-fbsvc-e4975b201d.json");
 dotenv.config();
 
@@ -30,6 +30,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/category", categoryRoutes);
 
 // Health check
 app.get("/health", (req, res) => {

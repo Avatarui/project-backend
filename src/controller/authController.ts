@@ -11,7 +11,7 @@ import { log } from 'console';
 // import { auth } from '../config/firebase';
 
 export const registerValidation = [
-  body('name')
+  body('username')
     .isLength({ min: 3, max: 100 })
     .withMessage('Name must be between 3 and 100 characters'),
   body('email')
