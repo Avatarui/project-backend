@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { Category } from '../types/category';
 import pool from '../config/database';
+
 export const createCategory = async (req: Request, res: Response) => {
   const { uid, cate_name, cate_pic } = req.body;
 
@@ -22,13 +23,17 @@ export const createCategory = async (req: Request, res: Response) => {
 };
 
 export const getCategory = async (req: Request, res: Response) => {
-  const { uid } = req.body;
+  const uid = req.query.uid as string;
 
   if (!uid) {
     return res.status(400).json({ message: 'Missing required fields' });
   }
+
   try {
-    const [rows] = await pool.execute('SELECT * FROM category WHERE uid = ?', [uid]);
+    const [rows] = await pool.execute(
+      'SELECT * FROM category WHERE uid = ?',
+      [uid]
+    );
     return res.status(200).json(rows);
   } catch (error) {
     console.error('Error fetching category:', error);

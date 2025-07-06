@@ -5,6 +5,7 @@ import authRoutes from "./route/auth";
 import admin from "firebase-admin";
 import {auth , db , bucket} from "./config/firebase";
 import categoryRoutes from "./route/category";
+import activityRoute from './route/activity'
 // const serviceAccount = require("../finalproject-609a4-firebase-adminsdk-fbsvc-e4975b201d.json");
 dotenv.config();
 
@@ -16,14 +17,7 @@ admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
     storageBucket: process.env.FIREBASE_BUCKET,
   });
-  
-  // export const auth = admin.auth();
-  // export const db = admin.firestore();
-  // export const bucket = admin.storage().bucket();
-// admin.initializeApp({
-//   credential: admin.credential.cert(serviceAccount),
-// });
-// Middleware
+
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -31,6 +25,7 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/category", categoryRoutes);
+app.use("/api/activity", activityRoute);
 
 // Health check
 app.get("/health", (req, res) => {
