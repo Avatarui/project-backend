@@ -1,22 +1,20 @@
 import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
+import path from 'path';
+import fs from 'fs';
 
 dotenv.config();
 
-const dbConfig = {
-  host: process.env.DB_HOST ,
-  user: process.env.DB_USER ,
+const pool = mysql.createPool({
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-};
+  waitForConnections: true,
+  connectionLimit: 10,
+  ssl: {
+    ca: fs.readFileSync(path.join(__dirname, '../../isrgrootx1.pem')),
+  },
+});
 
-export const createConnection = async () => {
-  try {
-    const connection = await mysql.createConnection(dbConfig);
-    console.log('Connected to MySQL database');
-    return connection;
-  } catch (error) {
-    console.error('Database connection failed:', error);
-    throw error;
-  }
-};
+export default pool;
