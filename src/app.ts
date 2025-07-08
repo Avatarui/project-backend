@@ -36,6 +36,7 @@ app.get("/health", (req, res) => {
 app.use("*", (req, res) => {
   res.status(404).json({ message: "Route not found" });
 });
+app.use(express.json());
 
 // Error handler
 app.use(
@@ -43,7 +44,8 @@ app.use(
     err: any,
     req: express.Request,
     res: express.Response,
-    next: express.NextFunction
+    next: express.NextFunction,
+    
   ) => {
     console.error(err.stack);
     res.status(500).json({ message: "Something went wrong!" });
