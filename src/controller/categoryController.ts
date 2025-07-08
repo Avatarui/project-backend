@@ -40,6 +40,8 @@ export const getCategory = async (req: Request, res: Response) => {
     return res.status(500).json({ message: 'Database error' });
   }
 };
+
+
 export const deleteCategory = async (req: Request, res: Response) => {
   const { uid, cate_id } = req.body;
 
@@ -59,6 +61,8 @@ export const deleteCategory = async (req: Request, res: Response) => {
     return res.status(500).json({ message: 'Database error' });
   }
 }
+
+
 export const updateCategory = async (req: Request, res: Response) => {
   const { uid, cate_id, cate_name, cate_pic } = req.body;
 

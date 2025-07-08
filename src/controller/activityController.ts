@@ -1,12 +1,14 @@
 import { Request, Response } from 'express';
 import { Activity } from '../types/activity';
 import pool from '../config/database';
+import { log } from 'console';
 export const createActivity = async (req: Request, res: Response) => {
     const { uid, cate_id, act_name, act_pic } = req.body;
-
-    if (!uid || !cate_id || !act_name || !act_pic) {
-        return res.status(400).json({ message: 'Missing required fields' });
-    }
+    // console.log(req.body);
+    // if (!uid || !cate_id || !act_name || !act_pic) {
+    //     console.log('Missing required fields. Received body:', req.body);
+    //     return res.status(400).json({ message: 'Missing required fields' });
+    // }
 
     try {
         // 🔍 ตรวจสอบว่า cate_id มีอยู่จริงในตาราง category ก่อน
