@@ -35,18 +35,29 @@ export const createActivity = async (req: Request, res: Response) => {
 };
 
 export const getActivity = async (req: Request, res: Response) => {
-    const { uid } = req.body;
-    if (!uid) {
-        return res.status(400).json({ message: 'Missing required fields' });
-    }
-    try {
-        const [rows] = await pool.execute('SELECT * FROM activity WHERE uid = ?', [uid]);
-        return res.status(200).json(rows);
-    } catch (error) {
-        console.error('Error fetching activity:', error);
-        return res.status(500).json({ message: 'Database error' });
-    }
+const uid = req.query.uid as string;
+const cateId = req.query.cate_id as string | undefined;
+
+if (!uid) {
+  return res.status(400).json({ message: 'Missing required fields' });
 }
+
+try {
+  let sql = 'SELECT * FROM activity WHERE uid = ?';
+  const params: any[] = [uid];
+
+  if (cateId) {
+    sql += ' AND cate_id = ?';
+    params.push(cateId);
+  }
+
+  const [rows] = await pool.execute(sql, params);
+  return res.status(200).json(rows);
+} catch (error) {
+  console.error('Error fetching activity:', error);
+  return res.status(500).json({ message: 'Database error' });
+}
+};
 export const deleteActivity = async (req: Request, res: Response) => {
     const { uid, act_id } = req.body;
 
