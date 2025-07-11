@@ -9,7 +9,7 @@ import {
   adminRegister,
   loginwithgoogle
 } from '../controller/authController';
-import { authenticateToken, requireAdmin } from '../middleware/auth';
+import { adminauthenticateToken, authenticateToken, requireAdmin } from '../middleware/auth';
 import multer from 'multer';
 
 const upload = multer({
@@ -34,8 +34,8 @@ router.post(
 router.post('/loginwithemail', loginwithemail);
 router.post('/loginwithgoogle', loginwithgoogle);
 // Protected routes
-router.get('/profile', authenticateToken, getProfile);
-router.get('/users', authenticateToken, requireAdmin, getAllUsers);
+router.get('/getProfile', authenticateToken, getProfile);
+router.get('/users' , getAllUsers);
 
 export default router;
 

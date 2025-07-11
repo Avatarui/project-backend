@@ -1,95 +1,94 @@
-import { Request, Response } from 'express';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { body, validationResult } from 'express-validator';
-import { UserLogin, UserRegister } from '../types/user';
-import router from '../route/auth';
-import admin from 'firebase-admin';
-import { UserModel } from '../model/User';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { log } from 'console';
+import { Request, Response } from "express";
+import bcrypt from "bcryptjs";
+import jwt, { JwtPayload as JWTPayloadBase } from "jsonwebtoken";
+import { body, validationResult } from "express-validator";
+import { UserLogin, UserRegister } from "../types/user";
+import router from "../route/auth";
+import admin from "firebase-admin";
+import { UserModel } from "../model/User";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { log } from "console";
+import { RowDataPacket } from "mysql2";
+import pool from "../config/database";
+import { AuthRequest } from "../middleware/auth";
 // import { auth } from '../config/firebase';
 
 export const registerValidation = [
-  body('username')
+  body("username")
     .isLength({ min: 3, max: 100 })
-    .withMessage('Name must be between 3 and 100 characters'),
-  body('email')
+    .withMessage("Name must be between 3 and 100 characters"),
+  body("email")
     .isEmail()
     .isLength({ max: 255 })
-    .withMessage('Please provide a valid email'),
-  body('password')
+    .withMessage("Please provide a valid email"),
+  body("password")
     .isLength({ min: 6 })
-    .withMessage('Password must be at least 6 characters long'),
-  body('usertype')
+    .withMessage("Password must be at least 6 characters long"),
+  body("usertype")
     .optional()
     .isLength({ max: 20 })
-    .withMessage('Telephone must not exceed 20 characters')
+    .withMessage("Telephone must not exceed 20 characters"),
 ];
 
 export const loginValidation = [
-  body('email').notEmpty().withMessage('Email is required'),
-  body('password').notEmpty().withMessage('Password is required')
+  body("email").notEmpty().withMessage("Email is required"),
+  body("password").notEmpty().withMessage("Password is required"),
 ];
-
+interface UserRow {
+  role: string;
+}
 export const register = async (req: Request, res: Response) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
     const { email, password, username, birthday } = req.body;
     const file = req.file;
 
-    // สร้าง user ใน Firebase Auth
+    // ✅ 1. สร้าง user ใน Firebase Auth
     const userRecord = await admin.auth().createUser({
       email,
       password,
       displayName: username,
     });
 
-    let photoURL = '';
+    // ✅ 2. เข้ารหัส password ด้วย bcrypt (ฝั่ง MySQL)
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    // ถ้ามีไฟล์ภาพ อัปโหลดไป Firebase Storage
+    let photoURL = "";
+
+    // ✅ 3. อัปโหลดรูปภาพไป Firebase Storage ถ้ามี
     if (file) {
       const bucket = admin.storage().bucket();
       const fileName = `profileImages/${userRecord.uid}_${Date.now()}`;
-
       const fileUpload = bucket.file(fileName);
 
-      // อัปโหลดไฟล์จาก buffer
       await fileUpload.save(file.buffer, {
-        metadata: {
-          contentType: file.mimetype,
-        },
+        metadata: { contentType: file.mimetype },
       });
-
-      // ตั้ง public access ให้ไฟล์นี้
       await fileUpload.makePublic();
-
-      // ได้ URL ของรูปที่อัปโหลด
       photoURL = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
     }
 
-    // บันทึกข้อมูลเสริมใน Firestore
-    await admin.firestore().collection('users').doc(userRecord.uid).set({
+    // ✅ 4. บันทึก user ลง MySQL พร้อม hash password
+    const sql = `
+      INSERT INTO users (uid, email, username, photo_url, role, birthday, status, password)
+      VALUES (?, ?, ?, ?, 'member', ?, 'active', ?)
+    `;
+    await pool.execute(sql, [
+      userRecord.uid,
       email,
-      name: username,
-      birthday,
+      username,
       photoURL,
-      role: 'member',
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+      birthday || null,
+      hashedPassword,
+    ]);
 
     res.status(201).json({
-      message: 'User registered successfully',
+      message: "User registered successfully",
       uid: userRecord.uid,
       photoURL,
     });
   } catch (error: any) {
-    console.error('Register error:', error);
-    res.status(500).json({ message: error.message || 'Internal server error' });
+    console.error("Register error:", error);
+    res.status(500).json({ message: error.message || "Internal server error" });
   }
 };
 
@@ -102,35 +101,34 @@ export const adminRegister = async (req: Request, res: Response) => {
 
     const { email, password, username } = req.body;
 
-    // ✅ สร้างผู้ใช้ใน Firebase Auth
+    // hash password ก่อนเก็บใน database (saltRounds = 10)
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // สร้างผู้ใช้ใน Firebase Auth
     const userRecord = await admin.auth().createUser({
       email,
       password,
       displayName: username,
     });
 
-    // ✅ เพิ่มข้อมูลเสริมใน Firestore ถ้าต้องการ
-    await admin.firestore().collection('users').doc(userRecord.uid).set({
-      email,
-      name: username,
-      // photoURL: userRecord.photoURL || '',
-      role: 'admin',
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    // บันทึกลง MySQL (ชื่อฟิลด์ให้ตรงกับตาราง)
+    await pool.query(
+      `INSERT INTO users (uid, email, username, role, password) VALUES (?, ?, ?, ?, ?)`,
+      [userRecord.uid, email, username, "admin", hashedPassword]
+    );
 
     res.status(201).json({
-      message: 'User registered successfully',
+      message: "Admin registered successfully",
       uid: userRecord.uid,
     });
   } catch (error: any) {
-    console.error('Register error:', error);
-    res.status(500).json({ message: error.message || 'Internal server error' });
+    console.error("Admin register error:", error);
+    res.status(500).json({ message: error.message || "Internal server error" });
   }
 };
-interface JwtPayload {
+interface JwtPayload extends JWTPayloadBase {
   userId: string;
-  usertype: string; // เพิ่ม usertype เข้าไปใน Token
-  // เพิ่ม field อื่นๆ ที่ต้องการ
+  role: string;
 }
 export const loginwithemail = async (req: Request, res: Response) => {
   const errors = validationResult(req);
@@ -138,152 +136,152 @@ export const loginwithemail = async (req: Request, res: Response) => {
     return res.status(400).json({ errors: errors.array() });
   }
 
-  // รับ Firebase ID Token จาก request body
   const { idToken } = req.body;
-  console.log(idToken);
-
   if (!idToken) {
-    return res.status(400).json({ message: 'Firebase ID Token is required.' });
+    return res.status(400).json({ message: "Firebase ID Token is required." });
   }
 
   try {
-    // 1. ตรวจสอบ Firebase ID Token ที่ได้รับจาก Client
     const decodedToken = await admin.auth().verifyIdToken(idToken);
-    const uid = decodedToken.uid; // นี่คือ User ID ที่ได้จาก Firebase Auth
+    const uid = decodedToken.uid;
 
-    // 2. ดึงข้อมูลผู้ใช้ (รวมถึง role) จาก Firestore โดยใช้ UID
-    const userDoc = await admin.firestore().collection('users').doc(uid).get();
-    let usertype = 'member'; // ค่าเริ่มต้น
+    // กำหนด type ให้กับ rows โดยระบุว่าเป็น array ของ RowDataPacket ที่มี property role
+    const [rows] = await pool.query<(RowDataPacket & UserRow)[]>(
+      "SELECT role FROM users WHERE uid = ? AND status = 'active' LIMIT 1",
+      [uid]
+    );
 
-    if (userDoc.exists && userDoc.data()?.role) {
-      usertype = userDoc.data()!.role; // ดึงค่า role จาก Firestore
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ message: "ไม่พบผู้ใช้ที่เกี่ยวข้องกับ Token นี้" });
     }
 
-    // 3. สร้าง JWT ที่กำหนดเองของคุณ (ถ้าคุณต้องการใช้ JWT สำหรับการยืนยันตัวตนใน API อื่นๆ ของคุณ)
-    const payload: JwtPayload = {
-      userId: uid,
-      usertype: usertype,
-    };
-    const customJwt = jwt.sign(payload, process.env.JWT_SECRET!, { expiresIn: '1h' });
+    const userRole = rows[0].role || "member";
 
-    // 4. ส่ง response กลับไปที่ Flutter App พร้อมกับ role และ JWT ที่สร้างขึ้น
-    res.status(200).json({
-      message: 'เข้าสู่ระบบสำเร็จ',
-      userId: uid,
-      role: usertype, // ส่ง role กลับไปด้วย
-      token: customJwt, // ส่ง JWT ที่สร้างขึ้น (ถ้ามี)
+    const payload: JwtPayload = { userId: uid, role: userRole };
+    const token = jwt.sign(payload, process.env.JWT_SECRET!, {
+      expiresIn: "1h",
     });
 
+    return res.status(200).json({
+      message: "เข้าสู่ระบบสำเร็จ",
+      userId: uid,
+      role: userRole,
+      token,
+    });
   } catch (error: any) {
-    console.error('Backend: Error verifying ID Token or fetching user data:', error);
+    console.error("Backend: Error verifying ID Token or fetching user data:", error);
 
-    // จัดการข้อผิดพลาดเฉพาะที่อาจเกิดขึ้นจากการตรวจสอบ ID Token
-    if (error.code === 'auth/id-token-expired') {
-      return res.status(401).json({ message: 'เซสชันหมดอายุ โปรดเข้าสู่ระบบใหม่' });
-    } else if (error.code === 'auth/invalid-id-token' || error.code === 'auth/argument-error') {
-      return res.status(401).json({ message: 'ID Token ไม่ถูกต้องหรือไม่สมบูรณ์' });
-    } else if (error.code === 'auth/user-not-found') {
-      return res.status(404).json({ message: 'ไม่พบผู้ใช้ที่เกี่ยวข้องกับ Token นี้' });
+    if (error.code === "auth/id-token-expired") {
+      return res.status(401).json({ message: "เซสชันหมดอายุ โปรดเข้าสู่ระบบใหม่" });
+    } else if (
+      error.code === "auth/invalid-id-token" ||
+      error.code === "auth/argument-error"
+    ) {
+      return res.status(401).json({ message: "ID Token ไม่ถูกต้องหรือไม่สมบูรณ์" });
+    } else if (error.code === "auth/user-not-found") {
+      return res.status(404).json({ message: "ไม่พบผู้ใช้ที่เกี่ยวข้องกับ Token นี้" });
     }
-    // ข้อผิดพลาดอื่นๆ ที่ไม่คาดคิด
-    return res.status(500).json({ message: 'เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์' });
+
+    return res.status(500).json({ message: "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์" });
   }
 };
 
-
 export const loginwithgoogle = async (req: Request, res: Response) => {
   try {
-    const idToken = req.headers.authorization?.split('Bearer ')[1];
-
+    const idToken = req.headers.authorization?.split("Bearer ")[1];
     if (!idToken) {
-      return res.status(401).json({ message: 'No token provided' });
+      return res.status(401).json({ message: "No token provided" });
     }
 
     // ✅ ตรวจสอบ token
     const decodedToken = await admin.auth().verifyIdToken(idToken);
     const uid = decodedToken.uid;
 
-    const usersRef = admin.firestore().collection('users');
-    const userDoc = await usersRef.doc(uid).get();
+    // ✅ ตรวจสอบว่า user มีอยู่ใน MySQL หรือยัง
+    const [rows]: any = await pool.execute(
+      "SELECT * FROM users WHERE uid = ?",
+      [uid]
+    );
 
-    // ✅ ถ้า user ยังไม่อยู่ใน Firestore → สร้างใหม่
-    if (!userDoc.exists) {
-      const { email, displayName, photoURL } = req.body;
+    if (rows.length === 0) {
+      // ✅ ถ้า user ยังไม่อยู่ใน MySQL → สร้างใหม่
+      const { email, displayName, picture } = decodedToken;
 
-      const newUser = {
-        userId: uid,
-        username: displayName || '',
-        email: email || '',
-        password: '', // ใช้เฉพาะ email-register เท่านั้น
-        birthday: '',
-        telephone: '',
-        role: 'member',
-        photoURL: photoURL || '',
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      };
-
-      await usersRef.doc(uid).set(newUser);
+      const sql = `
+        INSERT INTO users (uid, email, username, photo_url, role, status)
+        VALUES (?, ?, ?, ?, 'member', 'active')
+      `;
+      await pool.execute(sql, [
+        uid,
+        email || "",
+        displayName || "",
+        picture || "", // หรือใช้ req.body.photoURL ก็ได้
+      ]);
     }
 
-    const userData = (await usersRef.doc(uid).get()).data();
+    // ✅ ดึงข้อมูล user กลับ (หลัง insert หรือกรณีมีอยู่แล้ว)
+    const [userRows]: any = await pool.execute(
+      "SELECT * FROM users WHERE uid = ?",
+      [uid]
+    );
+    const user = userRows[0];
 
     res.status(200).json({
-      message: 'Token verified and user exists',
-      user: userData,
+      message: "Token verified and user exists",
+      user,
     });
   } catch (error) {
-    console.error('Token verification error:', error);
-    res.status(401).json({ message: 'Invalid or expired token' });
+    console.error("Token verification error:", error);
+    res.status(401).json({ message: "Invalid or expired token" });
   }
 };
 
-
-
-export const getProfile = async (req: any, res: Response) => {
+export const getProfile = async (req: AuthRequest, res: Response) => {
   try {
     const user = req.user;
+    if (!user) {
+      return res.status(401).json({ message: "Unauthorized: user not found" });
+    }
+
     res.json({
       uid: user.uid,
       email: user.email,
       displayName: user.displayName,
-      photoURL: user.photoURL,
-      phoneNumber: user.phoneNumber,
-      providerData: user.providerData,
-      disabled: user.disabled,
-      metadata: user.metadata,
+      role: user.role, // ใช้ role ตรงกับ middleware
     });
   } catch (error) {
-    console.error('Profile error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    console.error("Profile error:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
 export const getAllUsers = async (req: Request, res: Response) => {
   try {
-    const allUsers: admin.auth.UserRecord[] = [];
-    let nextPageToken: string | undefined;
+    // ดึงข้อมูลผู้ใช้ทั้งหมดจาก MySQL
+    // *** สำคัญ: หลีกเลี่ยงการ SELECT password ***
+    const [rows]: any = await pool.execute(
+      "SELECT uid, email, username, photo_url, role, status, birthday FROM users where role = 'member'"
+    );
 
-    do {
-      const listUsersResult = await admin.auth().listUsers(1000, nextPageToken);
-      allUsers.push(...listUsersResult.users);
-      nextPageToken = listUsersResult.pageToken;
-    } while (nextPageToken);
-
-    // แปลงข้อมูลให้อ่านง่าย (optional)
-    const users = allUsers.map(user => ({
+    // ปรับ format ของ birthday ให้เป็น String 'YYYY-MM-DD'
+    const users = rows.map((user: any) => ({
       uid: user.uid,
       email: user.email,
-      displayName: user.displayName,
-      photoURL: user.photoURL,
-      phoneNumber: user.phoneNumber,
-      providerData: user.providerData,
-      disabled: user.disabled,
-      metadata: user.metadata, // includes creation and last login timestamps
+      username: user.username,
+      photo_url: user.photo_url || null, // ถ้า photo_url เป็น null ใน DB ให้ส่ง null ไป
+      role: user.role,
+      status: user.status,
+      // แปลง Date object จาก MySQL เป็น String 'YYYY-MM-DD'
+      birthday: user.birthday ? user.birthday.toISOString().split('T')[0] : null,
     }));
 
-    res.status(200).json(users);
+    res.status(200).json({
+      message: "Users fetched successfully from MySQL",
+      users: users, // ส่ง array ของ user objects กลับไป
+    });
+
   } catch (error) {
-    console.error('Get users error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    console.error("Error fetching users from MySQL:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };

@@ -22,6 +22,25 @@ export const createCategory = async (req: Request, res: Response) => {
   }
 };
 
+// export const addDefaultCategory = async (req: Request, res: Response) => {
+//   const { uid, cate_name, cate_pic } = req.body;
+//   if (!uid || !cate_name || !cate_pic) {
+//     return res.status(400).json({ message: 'Missing required fields' });
+//   }
+  
+//  try {
+//     await pool.execute(
+//       'INSERT INTO category (uid, cate_name, cate_pic) VALUES (?, ?, ?)',
+//       [, cate_name, cate_pic]
+//     );
+
+//     return res.status(200).json({ message: 'Category created successfully' });
+//   } catch (error) {
+//     console.error('Error inserting category:', error);
+//     return res.status(500).json({ message: 'Database error' });
+//   }
+// }
+
 export const getCategory = async (req: Request, res: Response) => {
   const uid = req.query.uid as string;
 
