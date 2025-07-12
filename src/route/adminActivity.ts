@@ -26,3 +26,4 @@ router.put(
   //   upload.single("cateImage"), // multer middleware รับไฟล์
   updateDefaultActivity // controller ที่แก้ไขแล้ว
 );
+export default router;
