@@ -37,24 +37,26 @@ export const loginValidation = [
 interface UserRow {
   role: string;
 }
+function convertDateFormat(dateStr: string): string {
+  const [day, month, year] = dateStr.split('/');
+  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+}
+
 export const register = async (req: Request, res: Response) => {
   try {
     const { email, password, username, birthday } = req.body;
     const file = req.file;
 
-    // ✅ 1. สร้าง user ใน Firebase Auth
     const userRecord = await admin.auth().createUser({
       email,
       password,
       displayName: username,
     });
 
-    // ✅ 2. เข้ารหัส password ด้วย bcrypt (ฝั่ง MySQL)
     const hashedPassword = await bcrypt.hash(password, 10);
 
     let photoURL = "";
 
-    // ✅ 3. อัปโหลดรูปภาพไป Firebase Storage ถ้ามี
     if (file) {
       const bucket = admin.storage().bucket();
       const fileName = `profileImages/${userRecord.uid}_${Date.now()}`;
@@ -67,7 +69,8 @@ export const register = async (req: Request, res: Response) => {
       photoURL = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
     }
 
-    // ✅ 4. บันทึก user ลง MySQL พร้อม hash password
+    const formattedBirthday = birthday ? convertDateFormat(birthday) : null;
+
     const sql = `
       INSERT INTO users (uid, email, username, photo_url, role, birthday, status, password)
       VALUES (?, ?, ?, ?, 'member', ?, 'active', ?)
@@ -77,7 +80,7 @@ export const register = async (req: Request, res: Response) => {
       email,
       username,
       photoURL,
-      birthday || null,
+      formattedBirthday,
       hashedPassword,
     ]);
 
@@ -188,25 +191,25 @@ export const loginwithemail = async (req: Request, res: Response) => {
 
 export const loginwithgoogle = async (req: Request, res: Response) => {
   try {
-    const idToken = req.headers.authorization?.split("Bearer ")[1];
-    if (!idToken) {
-      return res.status(401).json({ message: "No token provided" });
+    console.log("Authorization Header:", req.headers.authorization);
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ message: "No token provided or invalid format" });
     }
+    const idToken = authHeader.split(" ")[1];
 
-    // ✅ ตรวจสอบ token
+    // ตรวจสอบ token
     const decodedToken = await admin.auth().verifyIdToken(idToken);
     const uid = decodedToken.uid;
 
-    // ✅ ตรวจสอบว่า user มีอยู่ใน MySQL หรือยัง
+    // ตรวจสอบ user ใน MySQL
     const [rows]: any = await pool.execute(
       "SELECT * FROM users WHERE uid = ?",
       [uid]
     );
 
     if (rows.length === 0) {
-      // ✅ ถ้า user ยังไม่อยู่ใน MySQL → สร้างใหม่
-      const { email, displayName, picture } = decodedToken;
-
+      const { email, name, picture } = decodedToken; // เปลี่ยนชื่อให้ตรง
       const sql = `
         INSERT INTO users (uid, email, username, photo_url, role, status)
         VALUES (?, ?, ?, ?, 'member', 'active')
@@ -214,12 +217,11 @@ export const loginwithgoogle = async (req: Request, res: Response) => {
       await pool.execute(sql, [
         uid,
         email || "",
-        displayName || "",
-        picture || "", // หรือใช้ req.body.photoURL ก็ได้
+        name || "",
+        picture || "",
       ]);
     }
 
-    // ✅ ดึงข้อมูล user กลับ (หลัง insert หรือกรณีมีอยู่แล้ว)
     const [userRows]: any = await pool.execute(
       "SELECT * FROM users WHERE uid = ?",
       [uid]
@@ -235,6 +237,7 @@ export const loginwithgoogle = async (req: Request, res: Response) => {
     res.status(401).json({ message: "Invalid or expired token" });
   }
 };
+
 
 export const getProfile = async (req: AuthRequest, res: Response) => {
   try {
@@ -260,7 +263,7 @@ export const getAllUsers = async (req: Request, res: Response) => {
     // ดึงข้อมูลผู้ใช้ทั้งหมดจาก MySQL
     // *** สำคัญ: หลีกเลี่ยงการ SELECT password ***
     const [rows]: any = await pool.execute(
-      "SELECT uid, email, username, photo_url, role, status, birthday FROM users where role = 'member'"
+      "SELECT uid, email, username, photo_url, role, status, birthday FROM users where role = 'member' "
     );
 
     // ปรับ format ของ birthday ให้เป็น String 'YYYY-MM-DD'
@@ -278,10 +281,35 @@ export const getAllUsers = async (req: Request, res: Response) => {
     res.status(200).json({
       message: "Users fetched successfully from MySQL",
       users: users, // ส่ง array ของ user objects กลับไป
+      
     });
 
   } catch (error) {
     console.error("Error fetching users from MySQL:", error);
     res.status(500).json({ message: "Internal server error" });
+  }
+};
+export const getUserRole = async (req: Request, res: Response) => {
+  const uid = req.query.uid as string;
+
+  if (!uid) {
+    return res.status(400).json({ message: 'Missing uid' });
+  }
+
+  try {
+    const [rows]: any = await pool.execute(
+      'SELECT role FROM users WHERE uid = ?',
+      [uid]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const role = rows[0].role;
+    return res.status(200).json({ role });
+  } catch (error) {
+    console.error('Error fetching user role:', error);
+    return res.status(500).json({ message: 'Internal Server Error' });
   }
 };
