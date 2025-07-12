@@ -7,7 +7,8 @@ import {
   registerValidation,
   loginValidation,
   adminRegister,
-  loginwithgoogle
+  loginwithgoogle,
+  getUserRole
 } from '../controller/authController';
 import { adminauthenticateToken, authenticateToken, requireAdmin } from '../middleware/auth';
 import multer from 'multer';
@@ -36,6 +37,8 @@ router.post('/loginwithgoogle', loginwithgoogle);
 // Protected routes
 router.get('/getProfile', authenticateToken, getProfile);
 router.get('/users' , getAllUsers);
+router.get('/getRole', getUserRole);
+
 
 export default router;
 
