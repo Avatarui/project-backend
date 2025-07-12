@@ -1,5 +1,4 @@
 import { Request, Response } from "express";
-import { Category } from "../types/category";
 import pool from "../config/database";
 
 export const addDefaultCategory = async (req: Request, res: Response) => {
