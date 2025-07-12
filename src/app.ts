@@ -7,6 +7,7 @@ import {auth , db , bucket} from "./config/firebase";
 import categoryRoutes from "./route/category";
 import activityRoute from './route/activity'
 import defaultcategoryRoutes from "./route/adminCategory";
+import defaultactivityRoutes from "./route/adminActivity";
 
 // const serviceAccount = require("../finalproject-609a4-firebase-adminsdk-fbsvc-e4975b201d.json");
 dotenv.config();
@@ -28,7 +29,9 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/api/auth", authRoutes);
 app.use("/api/category", categoryRoutes);
 app.use("/api/activity", activityRoute);
-app.use("/api/admin", defaultcategoryRoutes);
+app.use("/api/adminCate", defaultcategoryRoutes);
+app.use("/api/adminAct", defaultactivityRoutes);
+
 
 // Health check
 app.get("/health", (req, res) => {
