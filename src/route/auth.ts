@@ -20,10 +20,6 @@ const upload = multer({
 
 const router = Router();
 
-// Public routes
-// router.post('/register', registerValidation, register);
-// router.post('/login', loginValidation, loginwithemail);
-
 router.post('/adminregister', registerValidation, adminRegister);
 router.post(
   '/registerwithemailpassword',
