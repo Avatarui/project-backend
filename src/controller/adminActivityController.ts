@@ -34,10 +34,11 @@ export const createDefaultActivity = async (req: Request, res: Response) => {
 };
 
 export const getDefaultActivities = async (req: Request, res: Response) => {
+  const cateId = req.query.cate_id as string | undefined;
   try {
     const [rows] = await pool.execute(
-      "SELECT * FROM activity WHERE uid = ?",
-      [defaultUid]
+      "SELECT * FROM activity WHERE uid = ? AND cate_id = ?",
+      [defaultUid, cateId]
     );
     return res.status(200).json(rows);
   } catch (error) {
@@ -47,24 +48,14 @@ export const getDefaultActivities = async (req: Request, res: Response) => {
 };
 
 export const updateDefaultActivity = async (req: Request, res: Response) => {
-  const { act_id, act_name, act_pic, cate_id } = req.body;
+const { uid, act_id, act_name, act_pic } = req.body;
 
-  if (!act_id || !act_name || !act_pic || !cate_id) {
+  if (!uid || !act_id || !act_name || !act_pic) {
     return res.status(400).json({ message: "Missing required fields" });
   }
 
   try {
-    // ตรวจสอบ category ว่ายังมีอยู่สำหรับ uid = default
-    const [categoryRows] = await pool.execute(
-      "SELECT cate_id FROM category WHERE cate_id = ? AND uid = ?",
-      [cate_id, defaultUid]
-    );
-
-    if ((categoryRows as any[]).length === 0) {
-      return res.status(404).json({ message: "Category not found" });
-    }
-
-    // ตรวจสอบ activity ว่ายังมีอยู่สำหรับ uid = default
+    // 🔍 ตรวจสอบว่า act_id มีอยู่จริงในตาราง activity ก่อน
     const [activityRows] = await pool.execute(
       "SELECT act_id FROM activity WHERE act_id = ? AND uid = ?",
       [act_id, defaultUid]
@@ -74,17 +65,19 @@ export const updateDefaultActivity = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Activity not found" });
     }
 
+    // ✅ ถ้ามี activity จริง → ค่อยอัพเดท activity
     await pool.execute(
-      "UPDATE activity SET cate_id = ?, act_name = ?, act_pic = ? WHERE act_id = ? AND uid = ?",
-      [cate_id, act_name, act_pic, act_id, defaultUid]
+      "UPDATE activity SET act_name = ?, act_pic = ? WHERE uid = ? AND act_id = ?",
+      [act_name, act_pic, defaultUid, act_id]
     );
 
-    return res.status(200).json({ message: "Default activity updated successfully" });
+    return res.status(200).json({ message: "Activity updated successfully" });
   } catch (error) {
-    console.error("Error updating default activity:", error);
+    console.error("Error updating activity:", error);
     return res.status(500).json({ message: "Database error" });
   }
 };
+
 
 export const deleteDefaultActivity = async (req: Request, res: Response) => {
   const { act_id } = req.body;

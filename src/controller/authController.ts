@@ -38,8 +38,8 @@ interface UserRow {
   role: string;
 }
 function convertDateFormat(dateStr: string): string {
-  const [day, month, year] = dateStr.split('/');
-  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  const [day, month, year] = dateStr.split("/");
+  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 }
 
 export const register = async (req: Request, res: Response) => {
@@ -155,7 +155,9 @@ export const loginwithemail = async (req: Request, res: Response) => {
     );
 
     if (!rows || rows.length === 0) {
-      return res.status(404).json({ message: "ไม่พบผู้ใช้ที่เกี่ยวข้องกับ Token นี้" });
+      return res
+        .status(404)
+        .json({ message: "ไม่พบผู้ใช้ที่เกี่ยวข้องกับ Token นี้" });
     }
 
     const userRole = rows[0].role || "member";
@@ -172,17 +174,26 @@ export const loginwithemail = async (req: Request, res: Response) => {
       token,
     });
   } catch (error: any) {
-    console.error("Backend: Error verifying ID Token or fetching user data:", error);
+    console.error(
+      "Backend: Error verifying ID Token or fetching user data:",
+      error
+    );
 
     if (error.code === "auth/id-token-expired") {
-      return res.status(401).json({ message: "เซสชันหมดอายุ โปรดเข้าสู่ระบบใหม่" });
+      return res
+        .status(401)
+        .json({ message: "เซสชันหมดอายุ โปรดเข้าสู่ระบบใหม่" });
     } else if (
       error.code === "auth/invalid-id-token" ||
       error.code === "auth/argument-error"
     ) {
-      return res.status(401).json({ message: "ID Token ไม่ถูกต้องหรือไม่สมบูรณ์" });
+      return res
+        .status(401)
+        .json({ message: "ID Token ไม่ถูกต้องหรือไม่สมบูรณ์" });
     } else if (error.code === "auth/user-not-found") {
-      return res.status(404).json({ message: "ไม่พบผู้ใช้ที่เกี่ยวข้องกับ Token นี้" });
+      return res
+        .status(404)
+        .json({ message: "ไม่พบผู้ใช้ที่เกี่ยวข้องกับ Token นี้" });
     }
 
     return res.status(500).json({ message: "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์" });
@@ -194,7 +205,9 @@ export const loginwithgoogle = async (req: Request, res: Response) => {
     console.log("Authorization Header:", req.headers.authorization);
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ message: "No token provided or invalid format" });
+      return res
+        .status(401)
+        .json({ message: "No token provided or invalid format" });
     }
     const idToken = authHeader.split(" ")[1];
 
@@ -214,12 +227,7 @@ export const loginwithgoogle = async (req: Request, res: Response) => {
         INSERT INTO users (uid, email, username, photo_url, role, status)
         VALUES (?, ?, ?, ?, 'member', 'active')
       `;
-      await pool.execute(sql, [
-        uid,
-        email || "",
-        name || "",
-        picture || "",
-      ]);
+      await pool.execute(sql, [uid, email || "", name || "", picture || ""]);
     }
 
     const [userRows]: any = await pool.execute(
@@ -238,7 +246,6 @@ export const loginwithgoogle = async (req: Request, res: Response) => {
   }
 };
 
-
 export const getProfile = async (req: AuthRequest, res: Response) => {
   try {
     const user = req.user;
@@ -246,12 +253,20 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ message: "Unauthorized: user not found" });
     }
 
-    res.json({
-      uid: user.uid,
-      email: user.email,
-      displayName: user.displayName,
-      role: user.role, // ใช้ role ตรงกับ middleware
-    });
+    const uid = user.uid; // ใช้ uid จาก token ที่ถูก verify แล้ว
+
+    const [rows] = await pool.execute(
+      "SELECT uid, email, username, photo_url, role, status, birthday FROM users WHERE uid = ?",
+      [uid]
+    );
+
+    if (!rows || (rows as any[]).length === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const profile = (rows as any[])[0];
+
+    res.json(profile);
   } catch (error) {
     console.error("Profile error:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -275,15 +290,15 @@ export const getAllUsers = async (req: Request, res: Response) => {
       role: user.role,
       status: user.status,
       // แปลง Date object จาก MySQL เป็น String 'YYYY-MM-DD'
-      birthday: user.birthday ? user.birthday.toISOString().split('T')[0] : null,
+      birthday: user.birthday
+        ? user.birthday.toISOString().split("T")[0]
+        : null,
     }));
 
     res.status(200).json({
       message: "Users fetched successfully from MySQL",
       users: users, // ส่ง array ของ user objects กลับไป
-      
     });
-
   } catch (error) {
     console.error("Error fetching users from MySQL:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -293,23 +308,23 @@ export const getUserRole = async (req: Request, res: Response) => {
   const uid = req.query.uid as string;
 
   if (!uid) {
-    return res.status(400).json({ message: 'Missing uid' });
+    return res.status(400).json({ message: "Missing uid" });
   }
 
   try {
     const [rows]: any = await pool.execute(
-      'SELECT role FROM users WHERE uid = ?',
+      "SELECT role FROM users WHERE uid = ?",
       [uid]
     );
 
     if (rows.length === 0) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: "User not found" });
     }
 
     const role = rows[0].role;
     return res.status(200).json({ role });
   } catch (error) {
-    console.error('Error fetching user role:', error);
-    return res.status(500).json({ message: 'Internal Server Error' });
+    console.error("Error fetching user role:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 };

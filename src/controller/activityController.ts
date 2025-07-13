@@ -37,14 +37,15 @@ export const createActivity = async (req: Request, res: Response) => {
 export const getActivity = async (req: Request, res: Response) => {
   const uid = req.query.uid as string;
   const cateId = req.query.cate_id as string | undefined;
+  const defaultUid = "default";
 
   if (!uid) {
     return res.status(400).json({ message: "Missing required fields" });
   }
 
   try {
-    let sql = "SELECT * FROM activity WHERE uid = ?";
-    const params: any[] = [uid];
+    let sql = "SELECT * FROM activity WHERE uid IN (?,?) ";
+    const params: any[] = [uid,defaultUid];
 
     if (cateId) {
       sql += " AND cate_id = ?";
@@ -58,6 +59,7 @@ export const getActivity = async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Database error" });
   }
 };
+
 export const deleteActivity = async (req: Request, res: Response) => {
   const { uid, act_id } = req.body;
 
