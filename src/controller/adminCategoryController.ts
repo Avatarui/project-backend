@@ -2,7 +2,6 @@ import { Request, Response } from "express";
 import pool from "../config/database";
 
 export const addDefaultCategory = async (req: Request, res: Response) => {
-  const cateDefault = "default";
   const { uid, cate_name, cate_pic } = req.body;
   if (!uid || !cate_name || !cate_pic) {
     return res.status(400).json({ message: "Missing required fields" });
@@ -11,7 +10,7 @@ export const addDefaultCategory = async (req: Request, res: Response) => {
   try {
     await pool.execute(
       "INSERT INTO category (uid, cate_name, cate_pic) VALUES (?, ?, ?)",
-      [cateDefault, cate_name, cate_pic]
+      [uid, cate_name, cate_pic]
     );
 
     return res.status(200).json({ message: "Category created successfully" });
@@ -20,12 +19,13 @@ export const addDefaultCategory = async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Database error" });
   }
 };
+
 export const getDefaultCategories = async (req: Request, res: Response) => {
   const uid = req.query.uid as string;
   const cateDefault = "default";
   try {
     const [rows] = await pool.execute("SELECT * FROM category WHERE uid = ?", [
-      cateDefault,
+      uid,
     ]);
     return res.status(200).json(rows);
   } catch (error) {
@@ -33,9 +33,9 @@ export const getDefaultCategories = async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Database error" });
   }
 };
+
 export const deleteDefaultCategory = async (req: Request, res: Response) => {
   const { uid, cate_id } = req.body;
-  const cateDefault = "default";
   if (!uid || !cate_id) {
     return res.status(400).json({ message: "Missing required fields" });
   }
@@ -43,7 +43,7 @@ export const deleteDefaultCategory = async (req: Request, res: Response) => {
   try {
     await pool.execute(
       "DELETE FROM category WHERE uid = ? AND cate_id = ?",
-      [cateDefault, cate_id]
+      [uid, cate_id]
     );
 
     return res.status(200).json({ message: "Category deleted successfully" });
@@ -55,7 +55,6 @@ export const deleteDefaultCategory = async (req: Request, res: Response) => {
 
 export const updateDefaultCategory = async (req: Request, res: Response) => {
   const { uid, cate_id, cate_name, cate_pic } = req.body;
-  const cateDefault = "default";
   if (!uid || !cate_id || !cate_name || !cate_pic) {
     return res.status(400).json({ message: "Missing required fields" });
   }
@@ -63,7 +62,7 @@ export const updateDefaultCategory = async (req: Request, res: Response) => {
   try {
     await pool.execute(
       "UPDATE category SET cate_name = ?, cate_pic = ? WHERE uid = ?  AND cate_id = ?",
-      [cate_name, cate_pic, cateDefault, cate_id]
+      [cate_name, cate_pic, uid, cate_id]
     );
 
     return res.status(200).json({ message: "Category updated successfully" });
