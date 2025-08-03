@@ -9,10 +9,10 @@ import {
 const router = Router();
 
 // สร้าง expectation
-router.post("/create", createExpectation);
+router.post("/createexp", createExpectation);
 
 // ดึง expectation ตาม uid
-router.get("/get", getExpectationsByUser);
+router.get("/getuidex", getExpectationsByUser);
 
 // แก้ไข expectation
 router.put("/update", updateExpectation);
