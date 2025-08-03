@@ -9,6 +9,8 @@ import activityRoute from './route/activity'
 import defaultcategoryRoutes from "./route/adminCategory";
 import defaultactivityRoutes from "./route/adminActivity";
 import expectationRoute from "./route/exp_user"; 
+import activityDetailRoutes from "./route/act_detail";
+
 // const serviceAccount = require("../finalproject-609a4-firebase-adminsdk-fbsvc-e4975b201d.json");
 dotenv.config();
 
@@ -32,6 +34,7 @@ app.use("/api/activity", activityRoute);
 app.use("/api/adminCate", defaultcategoryRoutes);
 app.use("/api/adminAct", defaultactivityRoutes);
 app.use("/api/expuser", expectationRoute); 
+app.use("/api/activityDetail", activityDetailRoutes);
 
 // Health check
 app.get("/health", (req, res) => {
