@@ -1,9 +1,9 @@
-import { createConnection } from '../config/database';
+import pool from '../config/database';
 import { User, UserRegister } from '../types/user';
 
 export class UserModel {
   static async findByUsername(username: string): Promise<User | null> {
-    const connection = await createConnection();
+    const connection = await pool.getConnection();
     try {
       const [rows] = await connection.execute(
         'SELECT * FROM user WHERE username = ?',
@@ -12,12 +12,12 @@ export class UserModel {
       const users = rows as User[];
       return users.length > 0 ? users[0] : null;
     } finally {
-      await connection.end();
+      connection.release();
     }
   }
 
   static async findById(id: number): Promise<User | null> {
-    const connection = await createConnection();
+    const connection = await pool.getConnection();
     try {
       const [rows] = await connection.execute(
         'SELECT * FROM user WHERE userID = ?',
@@ -26,12 +26,12 @@ export class UserModel {
       const users = rows as User[];
       return users.length > 0 ? users[0] : null;
     } finally {
-      await connection.end();
+      connection.release();
     }
   }
 
   static async create(userData: UserRegister): Promise<number> {
-    const connection = await createConnection();
+    const connection = await pool.getConnection();
     try {
       const [result] = await connection.execute(
         'INSERT INTO user (username, password, usertype) VALUES (?, ?, ?)',
@@ -39,19 +39,19 @@ export class UserModel {
       );
       return (result as any).insertId;
     } finally {
-      await connection.end();
+      connection.release();
     }
   }
 
   static async getAllUsers(): Promise<User[]> {
-    const connection = await createConnection();
+    const connection = await pool.getConnection();
     try {
       const [rows] = await connection.execute(
         'SELECT userID, username, usertype FROM user'
       );
       return rows as User[];
     } finally {
-      await connection.end();
+      connection.release();
     }
   }
 }
