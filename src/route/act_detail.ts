@@ -15,4 +15,5 @@ router.post("/addActivityDetail", addActivityDetail);
 router.delete("/activity-detail/:act_detail_id", deleteActivityDetail);
 router.get("/activity-detail", getAllActivityDetails);
 router.get("/activity-detail/:act_detail_id", getActivityDetailById);
+
 export default router;

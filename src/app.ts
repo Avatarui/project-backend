@@ -11,6 +11,8 @@ import defaultactivityRoutes from "./route/adminActivity";
 import expectationRoute from "./route/exp_user"; 
 import activityDetailRoutes from "./route/act_detail";
 import activityHistoryRoutes from "./route/act_history";
+import reportRoutes from "./route/report";
+import userRoute from "./route/users";
 
 
 // const serviceAccount = require("../finalproject-609a4-firebase-adminsdk-fbsvc-e4975b201d.json");
@@ -38,6 +40,8 @@ app.use("/api/adminAct", defaultactivityRoutes);
 app.use("/api/expuser", expectationRoute); 
 app.use("/api/activityDetail", activityDetailRoutes);
 app.use("/api/activityHistory", activityHistoryRoutes);
+app.use("/api/report",reportRoutes);
+app.use("/api/users", userRoute);
 
 
 // Health check
