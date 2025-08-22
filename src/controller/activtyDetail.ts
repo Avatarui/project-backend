@@ -1,117 +1,143 @@
-import { Request, Response, NextFunction } from "express";
+// controller/activtyDetail.ts
+import { Response } from "express";
 import { RowDataPacket, ResultSetHeader } from "mysql2";
 import pool from "../config/database";
-export const addActivityDetail = async (req: Request, res: Response) => {
-  const { uid, act_id, goal, unit, round, message, time_remind } = req.body;
+import { authenticateToken, AuthRequest } from "../middleware/auth";
 
-  // เช็คค่าว่าง
-  if (!uid || !act_id || !goal || !unit || !round || !message || !time_remind) {
+// ✅ เพิ่มกิจกรรม (ใช้ uid จาก token)
+export const addActivityDetail = async (req: AuthRequest, res: Response) => {
+  const uid = req.user?.uid; // ได้จาก authenticateToken
+  const { act_id, goal, unit, round, message, time_remind } = req.body;
+
+  if (!uid || !act_id || goal === undefined || !unit || round === undefined || !message) {
     return res.status(400).json({ message: "Missing required fields" });
   }
 
   try {
-    // แปลง time_remind เป็น JSON string ถ้ายังไม่เป็น
-    const timeRemindJson = JSON.stringify(time_remind); // ต้องเป็น array เช่น ["08:00", "12:30"]
+    const timeRemindJson = JSON.stringify(time_remind ?? []); // ["08:00","12:30"]
 
-    const [result] = await pool.execute(
-      `INSERT INTO activity_detail 
-        (uid, act_id, goal, unit, round, message, time_remind)
+    const [result] = await pool.execute<ResultSetHeader>(
+      `INSERT INTO activity_detail
+         (uid, act_id, goal, unit, round, message, time_remind)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [uid, act_id, goal, unit, round, message, timeRemindJson]
     );
 
-    res
-      .status(201)
-      .json({ message: "Activity detail added successfully", result });
+    return res.status(201).json({
+      message: "Activity detail added successfully",
+      act_detail_id: result.insertId,
+    });
   } catch (error) {
     console.error("Error inserting activity detail:", error);
-    res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
-export const deleteActivityDetail = async (req: Request, res: Response) => {
+
+// ✅ ลบ (ลบได้เฉพาะของตัวเอง)
+export const deleteActivityDetail = async (req: AuthRequest, res: Response) => {
+  const uid = req.user?.uid;
   const { act_detail_id } = req.params;
 
-  try {
-    const [result] = await pool.execute(
-      `DELETE FROM activity_detail WHERE act_detail_id = ?`,
-      [act_detail_id]
-    );
-
-    if ((result as any).affectedRows === 0) {
-      return res.status(404).json({ message: "Activity detail not found" });
-    }
-
-    res.status(200).json({ message: "Activity detail deleted successfully" });
-  } catch (error) {
-    console.error("Error deleting activity detail:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-};
-export const getAllActivityDetails = async (req: Request, res: Response) => {
-  try {
-    const [rows] = await pool.execute(`SELECT * FROM activity_detail`);
-    res.status(200).json(rows);
-  } catch (error) {
-    console.error("Error fetching activity details:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-};
-export const getActivityDetailById = async (req: Request, res: Response) => {
-  const { act_detail_id } = req.params;
+  if (!uid) return res.status(401).json({ message: "Unauthorized" });
 
   try {
-    const [rows] = await pool.execute(
-      `SELECT * FROM activity_detail WHERE act_detail_id = ?`,
-      [act_detail_id]
-    );
-
-    const data = rows as any[];
-
-    if (data.length === 0) {
-      return res.status(404).json({ message: "Activity detail not found" });
-    }
-
-    res.status(200).json(data[0]);
-  } catch (error) {
-    console.error("Error fetching activity detail:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-};
-export const updateCurrentValue = async (req: Request, res: Response) => {
-  const { act_detail_id } = req.params;
-  const { current_value } = req.body;
-
-  if (current_value === undefined || current_value === null) {
-    return res.status(400).json({ message: "current_value is required" });
-  }
-
-  try {
-    // ดึง goal ก่อน
-    const [rows] = await pool.execute<RowDataPacket[]>(
-      "SELECT goal FROM activity_detail WHERE act_detail_id = ?",
-      [act_detail_id]
-    );
-
-    if (rows.length === 0) {
-      return res.status(404).json({ message: "Activity detail not found" });
-    }
-
-    const goal = Number(rows[0].goal) || 0;
-    const capped = Math.min(Number(current_value), goal);
-
     const [result] = await pool.execute<ResultSetHeader>(
-      "UPDATE activity_detail SET current_value = ? WHERE act_detail_id = ?",
-      [capped, act_detail_id]
+      `DELETE FROM activity_detail WHERE act_detail_id = ? AND uid = ?`,
+      [act_detail_id, uid]
     );
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "Activity detail not found" });
     }
 
-    // ดึงข้อมูลล่าสุดกลับมา
+    return res.status(200).json({ message: "Activity detail deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting activity detail:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// ✅ รายการ “ของฉัน” เท่านั้น
+export const getMyActivityDetails = async (req: AuthRequest, res: Response) => {
+  const uid = req.user?.uid;
+  if (!uid) return res.status(401).json({ message: "Unauthorized" });
+
+  try {
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      `SELECT * FROM activity_detail WHERE uid = ?`,
+      [uid]
+    );
+    return res.status(200).json(rows);
+  } catch (error) {
+    console.error("Error fetching activity details:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// ✅ ดูรายละเอียด 1 รายการ (ของฉันเท่านั้น)
+export const getActivityDetailById = async (req: AuthRequest, res: Response) => {
+  const uid = req.user?.uid;
+  const { act_detail_id } = req.params;
+
+  if (!uid) return res.status(401).json({ message: "Unauthorized" });
+
+  try {
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      `SELECT * FROM activity_detail WHERE act_detail_id = ? AND uid = ?`,
+      [act_detail_id, uid]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "Activity detail not found" });
+    }
+
+    return res.status(200).json(rows[0]);
+  } catch (error) {
+    console.error("Error fetching activity detail:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// ✅ ตั้งค่า current_value แบบ absolute (ของฉันเท่านั้น)
+export const updateCurrentValue = async (req: AuthRequest, res: Response) => {
+  const uid = req.user?.uid;
+  const { act_detail_id } = req.params;
+  const { current_value } = req.body;
+
+  if (!uid) return res.status(401).json({ message: "Unauthorized" });
+
+  const newVal = Number(current_value);
+  if (Number.isNaN(newVal) || newVal < 0) {
+    return res.status(400).json({ message: "current_value invalid" });
+  }
+
+  try {
+    // ดึง goal ของฉัน
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      `SELECT goal FROM activity_detail WHERE act_detail_id = ? AND uid = ?`,
+      [act_detail_id, uid]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "Activity detail not found" });
+    }
+
+    const rawGoal = rows[0].goal;
+    const goal = rawGoal == null ? null : Number(rawGoal);
+    const capped = goal != null && goal > 0 ? Math.min(newVal, goal) : newVal;
+
+    const [result] = await pool.execute<ResultSetHeader>(
+      `UPDATE activity_detail SET current_value = ? WHERE act_detail_id = ? AND uid = ?`,
+      [capped, act_detail_id, uid]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Activity detail not found" });
+    }
+
     const [after] = await pool.execute<RowDataPacket[]>(
-      "SELECT * FROM activity_detail WHERE act_detail_id = ?",
-      [act_detail_id]
+      `SELECT * FROM activity_detail WHERE act_detail_id = ? AND uid = ?`,
+      [act_detail_id, uid]
     );
 
     return res.status(200).json(after[0]);
@@ -121,50 +147,49 @@ export const updateCurrentValue = async (req: Request, res: Response) => {
   }
 };
 
-export const increaseCurrentValue = async (req: Request, res: Response) => {
+// ✅ เพิ่มค่าแบบก้อน (ของฉันเท่านั้น)
+export const increaseCurrentValue = async (req: AuthRequest, res: Response) => {
+  const uid = req.user?.uid;
   const { act_detail_id } = req.params;
   const { amount } = req.body;
 
-  if (amount === undefined || amount === null) {
-    return res.status(400).json({ message: "amount is required" });
-  }
+  if (!uid) return res.status(401).json({ message: "Unauthorized" });
+
   const inc = Number(amount);
   if (Number.isNaN(inc) || inc <= 0) {
-    return res
-      .status(400)
-      .json({ message: "amount must be a positive number" });
+    return res.status(400).json({ message: "amount must be a positive number" });
   }
 
   try {
-    // 1) SELECT current_value & goal (ระบุ generic เป็น RowDataPacket[])
+    // ดึง current & goal ของฉัน
     const [rows] = await pool.execute<RowDataPacket[]>(
-      "SELECT current_value, goal FROM activity_detail WHERE act_detail_id = ?",
-      [act_detail_id]
+      `SELECT current_value, goal FROM activity_detail WHERE act_detail_id = ? AND uid = ?`,
+      [act_detail_id, uid]
     );
 
     if (rows.length === 0) {
       return res.status(404).json({ message: "Activity detail not found" });
     }
 
-    const current = Number((rows[0] as any).current_value) || 0;
-    const goal = Number((rows[0] as any).goal) || 0;
+    const current = Number(rows[0].current_value) || 0;
+    const rawGoal = rows[0].goal;
+    const goal = rawGoal == null ? null : Number(rawGoal);
 
-    const next = Math.min(current + inc, goal);
+    const proposed = current + inc;
+    const next = goal != null && goal > 0 ? Math.min(proposed, goal) : proposed;
 
-    // 2) UPDATE (ระบุ generic เป็น ResultSetHeader)
     const [result] = await pool.execute<ResultSetHeader>(
-      "UPDATE activity_detail SET current_value = ? WHERE act_detail_id = ?",
-      [next, act_detail_id]
+      `UPDATE activity_detail SET current_value = ? WHERE act_detail_id = ? AND uid = ?`,
+      [next, act_detail_id, uid]
     );
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "Activity detail not found" });
     }
 
-    // 3) SELECT กลับมาอีกครั้ง (RowDataPacket[])
     const [after] = await pool.execute<RowDataPacket[]>(
-      "SELECT * FROM activity_detail WHERE act_detail_id = ?",
-      [act_detail_id]
+      `SELECT * FROM activity_detail WHERE act_detail_id = ? AND uid = ?`,
+      [act_detail_id, uid]
     );
 
     return res.status(200).json(after[0]);
