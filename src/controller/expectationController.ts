@@ -3,16 +3,16 @@ import pool from "../config/database";
 
 // ✅ CREATE: เพิ่ม expectation ใหม่
 export const createExpectation = async (req: Request, res: Response) => {
-  const { act_id, uid, user_exp, percentage_exp } = req.body;
+  const { act_id, uid, user_exp } = req.body;
 
-  if (!act_id || !uid || !user_exp || percentage_exp == null) {
+  if (!act_id || !uid || !user_exp == null) {
     return res.status(400).json({ message: "Missing required fields" });
   }
 
   try {
     await pool.execute(
-      "INSERT INTO expectation (act_id, uid, user_exp, percentage_exp) VALUES (?, ?, ?, ?)",
-      [act_id, uid, user_exp, percentage_exp]
+      "INSERT INTO expectation (act_id, uid, user_exp) VALUES (?, ?, ?)",
+      [act_id, uid, user_exp]
     );
     res.status(200).json({ message: "Expectation created successfully" });
   } catch (error) {
