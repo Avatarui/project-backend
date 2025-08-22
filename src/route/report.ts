@@ -3,6 +3,6 @@ import { sendReport,getReport } from "../controller/reportController";
 const router = Router();
 
 router.post("/sendReport",sendReport);
-router.post("/getReport",getReport);
+router.get("/getReport",getReport);
 
 export default router;

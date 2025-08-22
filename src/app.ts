@@ -13,6 +13,7 @@ import activityDetailRoutes from "./route/act_detail";
 import activityHistoryRoutes from "./route/act_history";
 import reportRoutes from "./route/report";
 import userRoute from "./route/users";
+import path from "path";
 
 
 // const serviceAccount = require("../finalproject-609a4-firebase-adminsdk-fbsvc-e4975b201d.json");
@@ -24,12 +25,13 @@ const PORT = process.env.PORT;
 const serviceAccount = require("../finalproject-609a4-firebase-adminsdk-fbsvc-e4975b201d.json");
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
-    storageBucket: process.env.FIREBASE_BUCKET,
+    // storageBucket: process.env.FIREBASE_BUCKET,
   });
 
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // Routes
 app.use("/api/auth", authRoutes);

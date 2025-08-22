@@ -47,6 +47,7 @@ export const register = async (req: Request, res: Response) => {
     const { email, password, username, birthday } = req.body;
     const file = req.file;
 
+    // สร้าง user ใน Firebase Auth (ไว้ auth)
     const userRecord = await admin.auth().createUser({
       email,
       password,
@@ -55,18 +56,10 @@ export const register = async (req: Request, res: Response) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // path รูป (ถ้ามี upload)
     let photoURL = "";
-
     if (file) {
-      const bucket = admin.storage().bucket();
-      const fileName = `profileImages/${userRecord.uid}_${Date.now()}`;
-      const fileUpload = bucket.file(fileName);
-
-      await fileUpload.save(file.buffer, {
-        metadata: { contentType: file.mimetype },
-      });
-      await fileUpload.makePublic();
-      photoURL = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+      photoURL = `/uploads/profileImages/${file.filename}`;
     }
 
     const formattedBirthday = birthday ? convertDateFormat(birthday) : null;
@@ -94,7 +87,6 @@ export const register = async (req: Request, res: Response) => {
     res.status(500).json({ message: error.message || "Internal server error" });
   }
 };
-
 export const adminRegister = async (req: Request, res: Response) => {
   try {
     const errors = validationResult(req);
@@ -253,7 +245,7 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ message: "Unauthorized: user not found" });
     }
 
-    const uid = user.uid; // ใช้ uid จาก token ที่ถูก verify แล้ว
+    const uid = user.uid;
 
     const [rows] = await pool.execute(
       "SELECT uid, email, username, photo_url, role, status, birthday FROM users WHERE uid = ?",
@@ -265,6 +257,12 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
     }
 
     const profile = (rows as any[])[0];
+
+    // ถ้า photo_url เป็น relative path ให้ต่อ base URL
+    if (profile.photo_url && profile.photo_url.startsWith("/uploads")) {
+      profile.photo_url = `${process.env.SERVER_URL}${profile.photo_url}`;
+      // เช่น SERVER_URL=http://localhost:5000
+    }
 
     res.json(profile);
   } catch (error) {
