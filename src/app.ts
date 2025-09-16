@@ -1,18 +1,18 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import authRoutes from "./route/auth";
+import authRoutes from "./routes/auth";
 import admin from "firebase-admin";
 import {auth , db , bucket} from "./config/firebase";
-import categoryRoutes from "./route/category";
-import activityRoute from './route/activity'
-import defaultcategoryRoutes from "./route/adminCategory";
-import defaultactivityRoutes from "./route/adminActivity";
-import expectationRoute from "./route/exp_user"; 
-import activityDetailRoutes from "./route/act_detail";
-import activityHistoryRoutes from "./route/act_history";
-import reportRoutes from "./route/report";
-import userRoute from "./route/users";
+import categoryRoutes from "./routes/category";
+import activityRoute from './routes/activity'
+// import defaultcategoryRoutes from "./routes/adminCategory";
+// import defaultactivityRoutes from "./routes/adminActivity";
+import expectationRoute from "./routes/exp_user"; 
+import activityDetailRoutes from "./routes/act_detail";
+import activityHistoryRoutes from "./routes/act_history";
+// import reportRoutes from "./routes/report";
+import userRoute from "./routes/users";
 import path from "path";
 
 
@@ -37,14 +37,10 @@ app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 app.use("/api/auth", authRoutes);
 app.use("/api/category", categoryRoutes);
 app.use("/api/activity", activityRoute);
-app.use("/api/adminCate", defaultcategoryRoutes);
-app.use("/api/adminAct", defaultactivityRoutes);
 app.use("/api/expuser", expectationRoute); 
 app.use("/api/activityDetail", activityDetailRoutes);
 app.use("/api/activityHistory", activityHistoryRoutes);
-app.use("/api/report",reportRoutes);
 app.use("/api/users", userRoute);
-
 
 // Health check
 app.get("/health", (req, res) => {
