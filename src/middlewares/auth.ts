@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import admin from 'firebase-admin';
 import { getUserByUID } from '../models/User';
 import { User } from '../types/user.types';
+import { log } from 'console';
 
 export interface AuthRequest<P = any, ResBody = any, ReqBody = any> extends Request<P, ResBody, ReqBody> {
   user?: User;
@@ -10,6 +11,7 @@ export interface AuthRequest<P = any, ResBody = any, ReqBody = any> extends Requ
 export const authenticateToken = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader?.split(' ')[1];
+  console.log(token)
 
   if (!token) return res.status(401).json({ message: 'Access token required' });
 
