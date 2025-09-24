@@ -29,12 +29,8 @@ router.post(
 );
 
 // Admin: ดู default categories
-router.get(
-  "/getDefaultCategories",
-  authenticateToken,
-  requireAdmin,
-  getDefaultCategories
-);
+router.get("/getDefaultCategories", authenticateToken, getDefaultCategories);
+
 
 // Admin: ลบ category
 router.post(
@@ -49,7 +45,9 @@ router.put(
   "/updateDefaultCategory",
   authenticateToken,
   requireAdmin,
+  // ถ้าต้องการรองรับการอัปเดตรูป: เปิดคอมเมนต์บรรทัดถัดไป
+  upload.single("cateImage"),
   updateCategory
-);
+)
 
 export default router;

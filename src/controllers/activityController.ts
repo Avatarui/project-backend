@@ -30,12 +30,23 @@ export const createActivity = async (req: AuthRequest, res: Response) => {
  * READ activities
  */
 export const getActivities = async (req: AuthRequest, res: Response) => {
-  const cateId = req.query.cate_id as string | undefined;
   try {
-    const rows = await activityService.getActivitiesDB(req.user?.role, req.user?.uid, cateId);
+    const role = req.user?.role;      // จาก middleware
+    const uid  = req.user?.uid;       // จาก middleware
+    const raw  = req.query.cate_id as string | undefined;
+    console.log(role, uid, raw);
+    if (!role || !uid) return res.status(401).json({ message: "Unauthenticated" });
+    if (!raw)        return res.status(400).json({ message: "cate_id is required" });
+
+    const cateId = raw;
+    // if (!Number.isFinite(cateId)) {
+    //   return res.status(400).json({ message: "cate_id must be a number" });
+    // }
+
+    const rows = await activityService.getActivitiesDB(role, uid, cateId);
     return res.status(200).json(rows);
   } catch (error) {
-    console.error("Error fetching activities:", error);
+    console.error("Error fetching activities:", { user: req.user, q: req.query }, error);
     return res.status(500).json({ message: "Database error" });
   }
 };

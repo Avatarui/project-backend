@@ -13,8 +13,8 @@ const upload = multer({
 });
 const router = Router();
 
-router.get("/getAct", authenticateToken, getActivities);
-router.post("/createAct", authenticateToken, upload.single("cateImage"), createActivity);
-router.put("/updateAct", authenticateToken, updateActivity);
-router.post("/deleteAct", authenticateToken, deleteActivity);
+router.get("/getAct", authenticateToken,getActivities);
+router.post("/createAct", upload.single("cateImage"), createActivity);
+router.put("/updateAct", updateActivity);
+router.post("/deleteAct", deleteActivity);
 export default router;

@@ -41,3 +41,12 @@ export interface UserProfile {
   status: string;
   birthday?: string;
 }
+export type AuthUser = {
+  uid: string;
+  role: "admin" | "member";
+  // เพิ่ม field อื่น ๆ ตามที่ใส่ใน token
+};
+
+export interface AuthRequest extends Request {
+  user?: AuthUser;
+}

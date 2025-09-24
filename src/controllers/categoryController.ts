@@ -1,12 +1,17 @@
 import { Request, Response } from "express";
 import { CategoryService } from "../services/categoryService";
+import { AuthRequest } from "../middlewares/auth";
 
 // Member
 export const getCategory = async (req: Request, res: Response) => {
-  const uid = req.query.uid as string;
-  if (!uid) return res.status(400).json({ message: "Missing required fields" });
-
   try {
+    const uid =
+      (req.query.uid as string) ||
+      (req.body.uid as string) ||
+      (req as any)?.user?.uid;
+
+    if (!uid) return res.status(400).json({ message: "Missing uid" });
+
     const categories = await CategoryService.getMemberCategories(uid);
     return res.status(200).json(categories);
   } catch (error) {
@@ -17,10 +22,17 @@ export const getCategory = async (req: Request, res: Response) => {
 
 // Admin
 export const addCategory = async (req: Request, res: Response) => {
-  const { uid, cate_name, cate_pic } = req.body;
-  if (!uid || !cate_name || !cate_pic) return res.status(400).json({ message: "Missing required fields" });
-
   try {
+    const uid =
+      (req.body.uid as string) ||
+      (req.query.uid as string) ||
+      (req as any)?.user?.uid;
+
+    const { cate_name, cate_pic } = req.body;
+    if (!uid || !cate_name || !cate_pic) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
     await CategoryService.addDefaultCategory(uid, cate_name, cate_pic);
     return res.status(200).json({ message: "Category created successfully" });
   } catch (error) {
@@ -30,10 +42,14 @@ export const addCategory = async (req: Request, res: Response) => {
 };
 
 export const getDefaultCategories = async (req: Request, res: Response) => {
-  const uid = req.query.uid as string;
-  if (!uid) return res.status(400).json({ message: "Missing required fields" });
-
   try {
+    const uid =
+      (req.query.uid as string) ||
+      (req.body.uid as string) ||
+      (req as any)?.user?.uid;
+
+    if (!uid) return res.status(400).json({ message: "Missing uid" });
+
     const categories = await CategoryService.getDefaultCategories(uid);
     return res.status(200).json(categories);
   } catch (error) {
@@ -43,11 +59,18 @@ export const getDefaultCategories = async (req: Request, res: Response) => {
 };
 
 export const updateCategory = async (req: Request, res: Response) => {
-  const { uid, cate_id, cate_name, cate_pic } = req.body;
-  if (!uid || !cate_id || !cate_name || !cate_pic) return res.status(400).json({ message: "Missing required fields" });
-
   try {
-    await CategoryService.updateDefaultCategory(uid, cate_id, cate_name, cate_pic);
+    const uid =
+      (req.body.uid as string) ||
+      (req.query.uid as string) ||
+      (req as any)?.user?.uid;
+
+    const { cate_id, cate_name, cate_pic } = req.body;
+    if (!uid || !cate_id || !cate_name || !cate_pic) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    await CategoryService.updateDefaultCategory(uid, Number(cate_id), cate_name, cate_pic);
     return res.status(200).json({ message: "Category updated successfully" });
   } catch (error) {
     console.error("Error updating category:", error);
@@ -56,11 +79,18 @@ export const updateCategory = async (req: Request, res: Response) => {
 };
 
 export const deleteCategory = async (req: Request, res: Response) => {
-  const { uid, cate_id } = req.body;
-  if (!uid || !cate_id) return res.status(400).json({ message: "Missing required fields" });
-
   try {
-    await CategoryService.deleteDefaultCategory(uid, cate_id);
+    const uid =
+      (req.body.uid as string) ||
+      (req.query.uid as string) ||
+      (req as any)?.user?.uid;
+
+    const { cate_id } = req.body;
+    if (!uid || !cate_id) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    await CategoryService.deleteDefaultCategory(uid, Number(cate_id));
     return res.status(200).json({ message: "Category deleted successfully" });
   } catch (error) {
     console.error("Error deleting category:", error);
