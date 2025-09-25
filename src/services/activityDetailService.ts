@@ -21,12 +21,16 @@ export const deleteActivityDetailById = async (uid: string, act_detail_id: strin
   return result.affectedRows;
 };
 
-export const getActivityDetailsByUid = async (uid: string) => {
-  const [rows] = await pool.execute<RowDataPacket[]>(
-    `SELECT * FROM activity_detail WHERE uid = ?`,
-    [uid]
-  );
-  return rows as ActivityDetail[];
+export const getActivityDetailsWithMaster = async (uid: string) => {
+  const [rows] = await pool.execute<RowDataPacket[]>(`
+    SELECT ad.*, a.act_name, a.act_pic
+    FROM activity_detail ad
+    JOIN activity a ON ad.act_id = a.act_id
+    WHERE ad.uid = ?
+    ORDER BY ad.act_detail_id ASC
+  `, [uid]);
+
+  return rows as (ActivityDetail & { act_name: string, act_pic: string })[];
 };
 
 export const getActivityDetailByIdAndUid = async (uid: string, act_detail_id: string | number) => {

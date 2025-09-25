@@ -30,7 +30,7 @@ router.post(
 router.post('/loginwithemail', loginWithEmail);
 router.post('/loginwithgoogle', loginWithGoogle);
 // Protected routes
-router.get('/getProfile', getProfile);
+router.get('/getProfile',authenticateToken, getProfile);
 router.get('/users', getAllUsers);
 router.get('/getRole', getUserRole);
 

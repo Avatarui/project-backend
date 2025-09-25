@@ -4,6 +4,7 @@ import admin from "firebase-admin";
 import { RowDataPacket } from "mysql2";
 import pool from "../config/database";
 import { JwtPayload, UserRow, UserProfile } from "../types/auth.types";
+import { log } from "console";
 
 export class AuthService {
   static async createFirebaseUser(email: string, password: string, username: string) {
@@ -32,6 +33,7 @@ export class AuthService {
   }
 
   static async getUserProfile(uid: string): Promise<UserProfile | null> {
+    console.log("Fetching user profile for UID:", uid);
     const [rows] = await pool.execute(
       "SELECT uid, email, username, photo_url, role, status, birthday FROM users WHERE uid = ?",
       [uid]
