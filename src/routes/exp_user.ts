@@ -5,8 +5,10 @@ import {
   
 } from "../controllers/expectationController";
 import { validateCreateExpectation, validateGetExpectation } from "../middlewares/validations/expectation.validation";
+import { authenticateToken } from "../middlewares/auth";
 
 const router = Router();
+router.use(authenticateToken);
 
 // สร้าง expectation
 router.post("/createexp", validateCreateExpectation,createExpectation);
