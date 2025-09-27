@@ -13,15 +13,12 @@ export const createExpectationService = async (
   );
   return result.insertId; // คืน exp_id ที่เพิ่งสร้าง
 };
-
-export const getExpectationsByUserService = async (
-  uid: string
-): Promise<ExpectationRow[]> => {
-  const [rows] = await pool.execute<RowDataPacket[]>(
-    "SELECT * FROM expectation WHERE uid = ?",
-    [uid]
+export const getExpectationsByUserService = async (uid: string, actId: string) => {
+  const [rows] = await pool.query(
+    "SELECT * FROM expectation WHERE uid = ? AND act_id = ?",
+    [uid, actId]
   );
-  return rows as ExpectationRow[];
+  return rows;
 };
 export const checkExpectationDB = async (actId: string, uid: string): Promise<boolean> => {
   const [rows] = await pool.execute(
