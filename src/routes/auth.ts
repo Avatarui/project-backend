@@ -16,9 +16,7 @@ const upload = multer({
   storage: multer.memoryStorage(), // เก็บไฟล์ใน RAM ชั่วคราว
   limits: { fileSize: 5 * 1024 * 1024 }, // ขนาดสูงสุด 5MB
 });
-
 const router = Router();
-
 router.post('/adminregister', registerValidation, adminRegister);
 router.post(
   '/registerwithemailpassword',
@@ -30,10 +28,9 @@ router.post(
 router.post('/loginwithemail', loginWithEmail);
 router.post('/loginwithgoogle', loginWithGoogle);
 // Protected routes
-router.get('/getProfile',authenticateToken, getProfile);
-router.get('/users', getAllUsers);
+router.get('/getProfile', authenticateToken, getProfile);
+router.get('/users', authenticateToken, requireAdmin, getAllUsers);
 router.get('/getRole', getUserRole);
 
 
 export default router;
-

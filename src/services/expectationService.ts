@@ -23,3 +23,19 @@ export const getExpectationsByUserService = async (
   );
   return rows as ExpectationRow[];
 };
+export const checkExpectationDB = async (actId: string, uid: string): Promise<boolean> => {
+  const [rows] = await pool.execute(
+    "SELECT * FROM expectation WHERE act_id = ? AND uid = ?",
+    [actId, uid]
+  );
+  return (rows as any[]).length > 0;
+};
+
+// ดึง user_exp ของ activity
+export const getExpectationsByActIdAndUser = async (actId: string, uid: string) => {
+  const [rows] = await pool.execute(
+    "SELECT user_exp FROM expectation WHERE act_id = ? AND uid = ?",
+    [actId, uid]
+  );
+  return (rows as any[])[0] || null;
+};
