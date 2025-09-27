@@ -23,15 +23,21 @@ export const createExpectation = async (req: Request, res: Response) => {
 // READ
 export const getExpectationsByUser = async (req: Request, res: Response) => {
   const uid = req.query.uid as string;
+  const actId = req.query.act_id as string;
+
+  if (!uid || !actId) {
+    return res.status(400).json({ message: "uid and act_id are required" });
+  }
 
   try {
-    const rows = await getExpectationsByUserService(uid);
+    const rows = await getExpectationsByUserService(uid, actId);
     res.status(200).json(rows);
   } catch (error) {
     console.error("Error fetching expectations:", error);
     res.status(500).json({ message: "Database error" });
   }
 };
+
 export const checkExpectationByActId = async (req: Request, res: Response) => {
   const { act_id, uid } = req.body;
 
