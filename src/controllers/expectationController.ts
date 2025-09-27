@@ -2,6 +2,8 @@ import { Request, Response } from "express";
 import {
   createExpectationService,
   getExpectationsByUserService,
+  checkExpectationDB,
+  getExpectationsByActIdAndUser
 } from "../services/expectationService";
 import { ExpectationBody } from "../types/expectation";
 
@@ -28,5 +30,25 @@ export const getExpectationsByUser = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error fetching expectations:", error);
     res.status(500).json({ message: "Database error" });
+  }
+};
+export const checkExpectationByActId = async (req: Request, res: Response) => {
+  const { act_id, uid } = req.body;
+
+  if (!act_id || !uid) return res.status(400).json({ message: "act_id and uid are required" });
+
+  try {
+    const exists = await checkExpectationDB(act_id, uid); // ปรับ service ให้รับ uid ด้วย
+    let userExp = null;
+
+    if (exists) {
+      const expectations = await getExpectationsByActIdAndUser(act_id, uid);
+      userExp = expectations.user_exp;
+    }
+
+    return res.status(200).json({ exists, user_exp: userExp });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Database error" });
   }
 };
