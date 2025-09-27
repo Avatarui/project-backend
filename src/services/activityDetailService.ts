@@ -56,3 +56,6 @@ export const getCurrentAndGoal = async (uid: string, act_detail_id: string | num
   );
   return rows[0] as { current_value: number; goal: number } | undefined;
 };
+
+
+//---------------------------------------
