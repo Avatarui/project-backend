@@ -12,6 +12,6 @@ router.post("/act_history", authenticateToken, addActivityHistory);
 router.post("/increaseCurrentValue", authenticateToken, increaseCurrentValue);
 router.put("/updateCurrentValue", updateLatestAction); // query: ?act_detail_id=...
 router.get("/getTodaySum", authenticateToken, getTodaySum); // query: ?act_detail_id=...
-router.get("/getCurrentValue", getTodayCurrentValue );
+router.get("/getCurrentValue", authenticateToken,getTodayCurrentValue );
 
 export default router;
