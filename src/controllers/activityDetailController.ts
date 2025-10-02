@@ -2,6 +2,7 @@
 import { Response } from "express";
 import { AuthRequest } from "../middlewares/auth";
 import * as activityDetailService from "../services/activityDetailService";
+import { ActivityHistoryService } from "../services/activityHistoryService";
 
 // เพิ่มกิจกรรม
 export const addActivityDetail = async (req: AuthRequest, res: Response) => {
@@ -91,6 +92,27 @@ export const getMyActivityDetails = async (req: AuthRequest, res: Response) => {
     // ใช้ฟังก์ชันใหม่ที่ JOIN กับ activity
     const rows = await activityDetailService.getActivityDetailsWithMaster(uid);
     return res.status(200).json(rows);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+export const getTodayCurrentValue = async (req: AuthRequest, res: Response) => {
+  const uid = req.user?.uid;
+  const act_detail_id = req.query.act_detail_id as string;
+
+  if (!uid) return res.status(401).json({ message: "Unauthorized" });
+  if (!act_detail_id) {
+    return res.status(400).json({ message: "act_detail_id query required" });
+  }
+
+  try {
+    const current = await ActivityHistoryService.getTodayActionSum(uid, act_detail_id);
+
+    return res.status(200).json({
+      act_detail_id,
+      current_value: current,
+    });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Internal server error" });
