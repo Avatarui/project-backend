@@ -8,7 +8,9 @@ import {
   UserStatus,
   UserStatusSelf,
   ApiResponse,
+  EditUserInfoBody,
 } from "../types/user.types";
+
 import { AuthRequest } from "../middlewares/auth";
 import {
   VALID_ADMIN_STATUSES,
@@ -21,11 +23,10 @@ import {
  * Member functionality - อัปเดตข้อมูลส่วนตัว
  */
 export const editUserInfo = async (
-  req: Request<{}, ApiResponse, EditUserInfo>,
+  req: AuthRequest,
   res: Response<ApiResponse>
 ) => {
   try {
-    // ตรวจสอบ validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({
@@ -35,24 +36,42 @@ export const editUserInfo = async (
       });
     }
 
-    const affectedRows = await UserService.updateUserInfo(req.body);
+    if (!req.user?.uid) {
+      return res.status(401).json({
+        success: false,
+        message: ERROR_MESSAGES.UNAUTHORIZED || "Unauthorized",
+      });
+    }
+
+    // รับเฉพาะฟิลด์ที่อนุญาตให้อัปเดต (ทั้งหมดเป็น optional)
+    const { username, email, photo_url, birthday } = req.body as Partial<EditUserInfo>;
+
+    // แปลง '' เป็น null เพื่อไม่ให้ไปเป็น undefined (mysql2 ไม่รับ undefined)
+    const payload: Partial<EditUserInfo> = {
+      username: username ?? undefined,
+      email: email ?? undefined,
+      photo_url: photo_url ?? undefined,
+      birthday: birthday ?? undefined, // อนุญาต null เพื่อล้างค่า
+    };
+
+    const affectedRows = await UserService.updateUserInfo(req.user.uid, payload);
 
     if (affectedRows === 0) {
       return res.status(404).json({
         success: false,
-        message: ERROR_MESSAGES.USER_NOT_FOUND,
+        message: ERROR_MESSAGES.NO_CHANGES || "No changes or user not found",
       });
     }
 
     return res.status(200).json({
       success: true,
-      message: SUCCESS_MESSAGES.USER_UPDATED,
+      message: SUCCESS_MESSAGES.USER_UPDATED || "User updated successfully",
     });
   } catch (error) {
     console.error("Error updating user info:", error);
     return res.status(500).json({
       success: false,
-      message: ERROR_MESSAGES.INTERNAL_ERROR,
+      message: ERROR_MESSAGES.INTERNAL_ERROR || "Internal server error",
     });
   }
 };
@@ -64,29 +83,41 @@ import { ActionLogService } from "../services/actionLogService";
 
 // ...
 export const changeUserStatus = async (
-  req: AuthRequest,   // ใช้ AuthRequest เพื่อรู้ว่าใครเป็นคนกระทำ
+  req: AuthRequest, // ใช้ AuthRequest เพื่อรู้ว่าใครเป็นคนกระทำ
   res: Response<ApiResponse>
 ) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, message: "Validation failed", data: errors.array() });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "Validation failed",
+          data: errors.array(),
+        });
     }
 
     const { status, uid, reason } = req.body;
 
     if (!VALID_ADMIN_STATUSES.includes(status)) {
-      return res.status(400).json({ success: false, message: ERROR_MESSAGES.INVALID_STATUS });
+      return res
+        .status(400)
+        .json({ success: false, message: ERROR_MESSAGES.INVALID_STATUS });
     }
 
     const userExists = await UserService.checkUserExists(uid);
     if (!userExists) {
-      return res.status(404).json({ success: false, message: ERROR_MESSAGES.USER_NOT_FOUND });
+      return res
+        .status(404)
+        .json({ success: false, message: ERROR_MESSAGES.USER_NOT_FOUND });
     }
 
     const affectedRows = await UserService.updateUserStatus({ uid, status });
     if (affectedRows === 0) {
-      return res.status(404).json({ success: false, message: ERROR_MESSAGES.NO_CHANGES });
+      return res
+        .status(404)
+        .json({ success: false, message: ERROR_MESSAGES.NO_CHANGES });
     }
 
     // ✅ Insert Action Log
@@ -95,48 +126,64 @@ export const changeUserStatus = async (
         target: uid,
         action: status as "suspend" | "deleted",
         reason: reason || "",
-        actionBy: req.user.uid
+        actionBy: req.user.uid,
       });
     }
 
     return res.status(200).json({
       success: true,
-      message: SUCCESS_MESSAGES.STATUS_UPDATED(status)
+      message: SUCCESS_MESSAGES.STATUS_UPDATED(status),
     });
   } catch (error) {
     console.error("Error changing user status:", error);
-    return res.status(500).json({ success: false, message: ERROR_MESSAGES.INTERNAL_ERROR });
+    return res
+      .status(500)
+      .json({ success: false, message: ERROR_MESSAGES.INTERNAL_ERROR });
   }
 };
-
 
 /**
  * Member functionality - อัปเดตสถานะตนเอง
  */
-export const updateMyStatus = async (req: AuthRequest, res: Response<ApiResponse>) => {
+export const updateMyStatus = async (
+  req: AuthRequest,
+  res: Response<ApiResponse>
+) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, message: "Validation failed", data: errors.array() });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "Validation failed",
+          data: errors.array(),
+        });
     }
 
     const { status, reason } = req.body;
 
     if (!VALID_SELF_STATUSES.includes(status)) {
-      return res.status(400).json({ success: false, message: ERROR_MESSAGES.INVALID_STATUS });
+      return res
+        .status(400)
+        .json({ success: false, message: ERROR_MESSAGES.INVALID_STATUS });
     }
 
     if (!req.user) {
-      return res.status(401).json({ success: false, message: ERROR_MESSAGES.UNAUTHORIZED });
+      return res
+        .status(401)
+        .json({ success: false, message: ERROR_MESSAGES.UNAUTHORIZED });
     }
 
     const affectedRows = await UserService.updateUserStatus({
       uid: req.user.uid,
-      status: status as UserStatus
+      status: status as UserStatus,
     });
 
     if (affectedRows === 0) {
-      return res.status(404).json({ success: false, message: ERROR_MESSAGES.NO_CHANGES });
+      return res
+        .status(404)
+        .json({ success: false, message: ERROR_MESSAGES.NO_CHANGES });
     }
 
     // ✅ Insert Action Log
@@ -144,19 +191,20 @@ export const updateMyStatus = async (req: AuthRequest, res: Response<ApiResponse
       target: req.user.uid,
       action: status as "suspend" | "deleted",
       reason: reason || "",
-      actionBy: req.user.uid
+      actionBy: req.user.uid,
     });
 
     return res.status(200).json({
       success: true,
-      message: SUCCESS_MESSAGES.SELF_STATUS_UPDATED(status)
+      message: SUCCESS_MESSAGES.SELF_STATUS_UPDATED(status),
     });
   } catch (error) {
     console.error("Error updating user status:", error);
-    return res.status(500).json({ success: false, message: ERROR_MESSAGES.INTERNAL_ERROR });
+    return res
+      .status(500)
+      .json({ success: false, message: ERROR_MESSAGES.INTERNAL_ERROR });
   }
 };
-
 
 /**
  * ดึงข้อมูลผู้ใช้ (เพิ่มเติม)

@@ -1,49 +1,59 @@
 import pool from "../config/database";
-import { EditUserInfo, ChangeUserStatus, UserStatus } from "../types/user.types";
+import {
+  EditUserInfo,
+  ChangeUserStatus,
+  UserStatus,
+  EditUserInfoBody,
+} from "../types/user.types";
 
 export class UserService {
   /**
    * อัปเดตข้อมูลผู้ใช้
    */
-  static async updateUserInfo(userData: EditUserInfo): Promise<number> {
+  // services/userService.ts
+  static async updateUserInfo(
+    uid: string,
+    userData: Partial<EditUserInfo>
+  ): Promise<number> {
     try {
-      const { uid, username, email, photo_url, birthday } = userData;
-      
-      // สร้าง dynamic query สำหรับ update เฉพาะฟิลด์ที่ส่งมา
+      const { username, email, photo_url, birthday } = userData;
+
       const fields: string[] = [];
       const values: any[] = [];
-      
+
+      // ใส่เฉพาะฟิลด์ที่ถูกส่งมา (ไม่ใช่ undefined)
       if (username !== undefined) {
-        fields.push('username = ?');
-        values.push(username);
+        fields.push("username = ?");
+        values.push(username ?? null);
       }
       if (email !== undefined) {
-        fields.push('email = ?');
-        values.push(email);
+        fields.push("email = ?");
+        values.push(email ?? null);
       }
       if (photo_url !== undefined) {
-        fields.push('photo_url = ?');
-        values.push(photo_url);
+        fields.push("photo_url = ?");
+        values.push(photo_url ?? null);
       }
       if (birthday !== undefined) {
-        fields.push('birthday = ?');
-        values.push(birthday);
+        fields.push("birthday = ?");
+        values.push(birthday ?? null);
       }
-      
-      // เพิ่ม updated_at
-      fields.push('updated_at = NOW()');
-      values.push(uid);
-      
-      if (fields.length === 1) { // เหลือแค่ updated_at
-        return 0; // ไม่มีการเปลี่ยนแปลงจริง
-      }
-      
-      const sql = `UPDATE users SET ${fields.join(', ')} WHERE uid = ? AND status != 'deleted'`;
-      
+
+      if (fields.length === 0) return 0; // ไม่มีอะไรให้แก้
+
+      // (ทางเลือก) อัปเดตเวลาแก้ไขล่าสุด
+      // fields.push("updated_at = NOW()");
+
+      // ✅ สร้าง setClause แยก เพื่อไม่ให้มีคอมม่าตัวท้าย
+      const setClause = fields.join(", ");
+
+      const sql = `UPDATE users SET ${setClause} WHERE uid = ? `;
+      values.push(uid); // uid ต้องอยู่ท้ายสุดตรงกับ WHERE
+
       const [result]: any = await pool.execute(sql, values);
       return result.affectedRows;
     } catch (error) {
-      console.error('Error in updateUserInfo:', error);
+      console.error("Error in updateUserInfo:", error);
       throw error;
     }
   }
@@ -54,17 +64,17 @@ export class UserService {
   static async updateUserStatus(data: ChangeUserStatus): Promise<number> {
     try {
       const { uid, status } = data;
-      
+
       const sql = `
         UPDATE users 
         SET status = ?, updated_at = NOW() 
         WHERE uid = ? AND status != ?
       `;
-      
+
       const [result]: any = await pool.execute(sql, [status, uid, status]);
       return result.affectedRows;
     } catch (error) {
-      console.error('Error in updateUserStatus:', error);
+      console.error("Error in updateUserStatus:", error);
       throw error;
     }
   }
@@ -80,7 +90,7 @@ export class UserService {
       );
       return rows.length > 0;
     } catch (error) {
-      console.error('Error in checkUserExists:', error);
+      console.error("Error in checkUserExists:", error);
       throw error;
     }
   }
@@ -96,7 +106,7 @@ export class UserService {
       );
       return rows.length > 0 ? rows[0] : null;
     } catch (error) {
-      console.error('Error in getUserByUid:', error);
+      console.error("Error in getUserByUid:", error);
       throw error;
     }
   }

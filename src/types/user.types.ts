@@ -167,6 +167,7 @@ export interface UserProfile extends Omit<User, 'password'> {
 }
 
 export interface UpdateProfileRequest {
+  email?: string;
   username?: string;
   photo_url?: string;
   birthday?: string;
@@ -223,3 +224,9 @@ export default {
   DEFAULT_USER_ROLE,
   DEFAULT_USER_STATUS,
 };
+export interface EditUserInfoBody {
+  username?: string;
+  email?: string;
+  photo_url?: string | null;
+  birthday?: string | null; // ส่ง null เพื่อลบค่าได้
+}
