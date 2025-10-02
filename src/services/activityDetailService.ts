@@ -50,7 +50,7 @@ LEFT JOIN activity_history ah
   ON ad.act_detail_id = ah.act_detail_id
   AND ad.uid = ah.uid
   AND ah.create_at = CURDATE()   
-WHERE ad.uid = '9dfJyi4ZQiefQFKoLRCeZm8sNXo2'
+WHERE ad.uid = ?
   AND (
         (ad.round = 'day' AND ad.create_at = CURDATE())
      OR (ad.round = 'week' AND CURDATE() BETWEEN ad.create_at AND DATE_ADD(ad.create_at, INTERVAL 6 DAY))
