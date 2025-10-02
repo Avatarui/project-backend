@@ -30,14 +30,7 @@ export const addActivityDetail = async (req: AuthRequest, res: Response) => {
   }
 
   try {
-    //     console.log("=== Add Activity Detail Request ===");
-    // console.log("uid:", uid);
-    // console.log("act_id:", act_id);
-    // console.log("goal:", goal);
-    // console.log("unit:", unit);
-    // console.log("round:", round);
-    // console.log("message:", message);
-    // console.log("time_remind:", time_remind);
+
     const act_detail_id = await activityDetailService.insertActivityDetail({
       uid,
       act_id,
@@ -85,11 +78,10 @@ export const deleteActivityDetail = async (req: AuthRequest, res: Response) => {
 // รายการของฉัน
 export const getMyActivityDetails = async (req: AuthRequest, res: Response) => {
   const uid = req.user?.uid;
-  console.log(uid);
   if (!uid) return res.status(401).json({ message: "Unauthorized" });
 
   try {
-    // ใช้ฟังก์ชันใหม่ที่ JOIN กับ activity
+    // ดึงกิจกรรมทั้งหมดของ user ที่ยังไม่หมดรอบ และยังไม่ครบ goal
     const rows = await activityDetailService.getActivityDetailsWithMaster(uid);
     return res.status(200).json(rows);
   } catch (error) {
@@ -97,6 +89,7 @@ export const getMyActivityDetails = async (req: AuthRequest, res: Response) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
 export const getTodayCurrentValue = async (req: AuthRequest, res: Response) => {
   const uid = req.user?.uid;
   const act_detail_id = req.query.act_detail_id as string;
@@ -111,7 +104,7 @@ export const getTodayCurrentValue = async (req: AuthRequest, res: Response) => {
 
     return res.status(200).json({
       act_detail_id,
-      current_value: current,
+      current_value: current, 
     });
   } catch (error) {
     console.error(error);
