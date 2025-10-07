@@ -4,9 +4,10 @@ import {
   getExpectationsByUserService,
   checkExpectationDB,
   getExpectationsByActIdAndUser,
-  updateExpectationService
+  updateExpectationService,
 } from "../services/expectationService";
 import { ExpectationBody } from "../types/expectation";
+import { AuthRequest } from "../middlewares/auth";
 
 // CREATE
 export const createExpectation = async (req: Request, res: Response) => {
@@ -14,7 +15,9 @@ export const createExpectation = async (req: Request, res: Response) => {
 
   try {
     const exp_id = await createExpectationService({ act_id, uid, user_exp });
-    res.status(200).json({ message: "Expectation created successfully", exp_id });
+    res
+      .status(200)
+      .json({ message: "Expectation created successfully", exp_id });
   } catch (error) {
     console.error("Error creating expectation:", error);
     res.status(500).json({ message: "Database error" });
@@ -67,26 +70,29 @@ export const checkExpectationByActId = async (req: Request, res: Response) => {
   }
 };
 
-export const updateExpectation = async (req: Request, res: Response) => {
-  const { act_id, uid, user_exp } = req.body;
+export const updateExpectation = async (req: AuthRequest, res: Response) => {
+  const { act_id, user_exp } = req.body;
+  const uid = req.user?.uid; // ✅ ดึง uid จาก token ที่ decode แล้ว
 
   if (!act_id || !uid || user_exp === undefined) {
-    return res.status(400).json({ message: "act_id, uid และ user_exp ต้องระบุ" });
+    return res.status(400).json({ message: "act_id และ user_exp ต้องระบุ" });
   }
 
   try {
-    // ตรวจสอบว่ามี record อยู่หรือไม่
     const exists = await checkExpectationDB(act_id, uid);
     if (!exists) {
-      return res.status(404).json({ message: "ไม่พบ expectation ของผู้ใช้คนนี้" });
+      return res
+        .status(404)
+        .json({ message: "ไม่พบ expectation ของผู้ใช้คนนี้" });
     }
 
-    // ทำการอัพเดท user_exp
     const updated = await updateExpectationService(act_id, uid, user_exp);
 
     if (updated) {
       const updatedData = await getExpectationsByActIdAndUser(act_id, uid);
-      return res.status(200).json({ message: "อัพเดทสำเร็จ", data: updatedData });
+      return res
+        .status(200)
+        .json({ message: "อัพเดทสำเร็จ", data: updatedData });
     } else {
       return res.status(500).json({ message: "อัพเดทไม่สำเร็จ" });
     }
