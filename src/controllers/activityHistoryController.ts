@@ -73,6 +73,7 @@ export const updateLatestAction = async (
 ) => {
   const { act_detail_id, action } = req.body;
   const uid = req.user?.uid;
+  console.log("Request body:", req.body);
 
   if (!uid) return res.status(401).json({ message: "Unauthorized" });
   if (!act_detail_id)
@@ -156,5 +157,32 @@ export const getDailyPercent = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Internal server error" });
+  }
+};
+// controllers/activityHistoryController.ts
+export const getLatestActionValue = async (
+  req: AuthRequest<{}, {}, {}>,
+  res: Response
+) => {
+  const { act_detail_id } = req.query;
+  const uid = req.user?.uid;
+
+  if (!uid) return res.status(401).json({ message: "Unauthorized" });
+  if (!act_detail_id)
+    return res.status(400).json({ message: "act_detail_id required" });
+
+  try {
+    // ✅ แปลงให้แน่ใจว่าเป็น string
+    const id = String(act_detail_id);
+
+    const latest = await ActivityHistoryService.getLatestHistory(uid, id);
+    return res.status(200).json({
+      act_detail_id: id,
+      latestAction: latest?.action ?? 0,
+      createdAt: latest?.create_at ?? null,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
