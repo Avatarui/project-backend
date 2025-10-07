@@ -36,33 +36,35 @@ export const getActivityDetailsWithMaster = async (uid: string) => {
   const [rows] = await pool.execute<RowDataPacket[]>(
     `
     SELECT 
-  ad.act_detail_id,
-  ad.goal,
-  ad.unit,
-  ad.round,
-  ad.create_at,
-  a.act_name,
-  a.act_pic,
-  COALESCE(SUM(ah.action), 0) AS current_value
-FROM activity_detail ad
-JOIN activity a ON ad.act_id = a.act_id
-LEFT JOIN activity_history ah 
-  ON ad.act_detail_id = ah.act_detail_id
-  AND ad.uid = ah.uid
-  AND ah.create_at = CURDATE()   
-WHERE ad.uid = ?
-  AND (
-        (ad.round = 'day' AND ad.create_at = CURDATE())
-     OR (ad.round = 'week' AND CURDATE() BETWEEN ad.create_at AND DATE_ADD(ad.create_at, INTERVAL 6 DAY))
-  )
-GROUP BY 
-  ad.act_detail_id, ad.goal, ad.unit, ad.round, ad.create_at, a.act_name, a.act_pic
-ORDER BY ad.act_detail_id ASC
-  `,
+      ad.act_detail_id,
+      ad.act_id,   -- เพิ่ม act_id
+      ad.goal,
+      ad.unit,
+      ad.round,
+      ad.create_at,
+      a.act_name,
+      a.act_pic,
+      COALESCE(SUM(ah.action), 0) AS current_value
+    FROM activity_detail ad
+    JOIN activity a ON ad.act_id = a.act_id
+    LEFT JOIN activity_history ah 
+      ON ad.act_detail_id = ah.act_detail_id
+      AND ad.uid = ah.uid
+      AND ah.create_at = CURDATE()   
+    WHERE ad.uid = ?
+      AND (
+            (ad.round = 'day' AND ad.create_at = CURDATE())
+         OR (ad.round = 'week' AND CURDATE() BETWEEN ad.create_at AND DATE_ADD(ad.create_at, INTERVAL 6 DAY))
+      )
+    GROUP BY 
+      ad.act_detail_id, ad.act_id, ad.goal, ad.unit, ad.round, ad.create_at, a.act_name, a.act_pic
+    ORDER BY ad.act_detail_id ASC
+    `,
     [uid]
   );
 
   return rows as (ActivityDetail & {
+    act_id: string;          // เพิ่มใน type ด้วย
     act_name: string;
     act_pic: string;
     current_value: number;

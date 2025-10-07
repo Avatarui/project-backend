@@ -11,7 +11,7 @@ export interface AuthRequest<P = any, ResBody = any, ReqBody = any> extends Requ
 export const authenticateToken = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader?.split(' ')[1];
-  // console.log(token)
+  console.log(token)
 
   if (!token) return res.status(401).json({ message: 'Access token required' });
 

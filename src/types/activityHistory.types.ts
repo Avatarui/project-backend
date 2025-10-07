@@ -1,6 +1,5 @@
 export interface ActivityHistoryBody {
-  act_detail_id: number;
-  uid: string;
+  act_detail_id: string | number;
   action: number;
-  value_done: number;
+  value_done?: number;
 }
