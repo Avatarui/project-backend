@@ -3,7 +3,8 @@ import {
   createExpectationService,
   getExpectationsByUserService,
   checkExpectationDB,
-  getExpectationsByActIdAndUser
+  getExpectationsByActIdAndUser,
+  updateExpectationService
 } from "../services/expectationService";
 import { ExpectationBody } from "../types/expectation";
 
@@ -63,5 +64,34 @@ export const checkExpectationByActId = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error in checkExpectationByActId:", error);
     return res.status(500).json({ message: "Database error" });
+  }
+};
+
+export const updateExpectation = async (req: Request, res: Response) => {
+  const { act_id, uid, user_exp } = req.body;
+
+  if (!act_id || !uid || user_exp === undefined) {
+    return res.status(400).json({ message: "act_id, uid และ user_exp ต้องระบุ" });
+  }
+
+  try {
+    // ตรวจสอบว่ามี record อยู่หรือไม่
+    const exists = await checkExpectationDB(act_id, uid);
+    if (!exists) {
+      return res.status(404).json({ message: "ไม่พบ expectation ของผู้ใช้คนนี้" });
+    }
+
+    // ทำการอัพเดท user_exp
+    const updated = await updateExpectationService(act_id, uid, user_exp);
+
+    if (updated) {
+      const updatedData = await getExpectationsByActIdAndUser(act_id, uid);
+      return res.status(200).json({ message: "อัพเดทสำเร็จ", data: updatedData });
+    } else {
+      return res.status(500).json({ message: "อัพเดทไม่สำเร็จ" });
+    }
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "เกิดข้อผิดพลาด" });
   }
 };

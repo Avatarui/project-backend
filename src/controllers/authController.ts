@@ -101,7 +101,7 @@ export const loginWithEmail = async (req: Request, res: Response) => {
 
     return res.status(200).json({
       message: "เข้าสู่ระบบสำเร็จ",
-      userId: uid,
+      uid: uid,
       role: userRole,
       token,
     });

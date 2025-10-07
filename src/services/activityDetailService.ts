@@ -1,6 +1,6 @@
 import { RowDataPacket, ResultSetHeader } from "mysql2";
 import pool from "../config/database";
-import { ActivityDetail } from "../types/activityDetail.types";
+import { ActivityDetail, DailyOverallPercent } from "../types/activityDetail.types";
 
 export const insertActivityDetail = async (data: ActivityDetail) => {
   const timeRemindJson = JSON.stringify(data.time_remind ?? []);
@@ -106,3 +106,24 @@ export const getCurrentAndGoal = async (
 };
 
 //---------------------------------------
+export async function getDailyOverallPercent(uid: string): Promise<DailyOverallPercent[]> {
+  console.log('Fetching daily overall percent for UID:', uid);
+  const sql = `
+    SELECT
+      DATE(ah.create_at) AS date,
+      LEAST(SUM(ah.action) / SUM(ad.goal) * 100, 100) AS overall_percent
+    FROM activity_history ah
+    JOIN activity_detail ad
+      ON ah.act_detail_id = ad.act_detail_id
+    WHERE ah.uid = ?
+    GROUP BY DATE(ah.create_at)
+    ORDER BY DATE(ah.create_at)
+  `;
+
+  const [rows] = await pool.execute(sql, [uid]);
+  
+  return (rows as any[]).map(row => ({
+    date: row.date,
+    overall_percent: Number(row.overall_percent)
+  }));
+}
