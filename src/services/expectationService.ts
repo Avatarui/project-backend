@@ -36,3 +36,15 @@ export const getExpectationsByActIdAndUser = async (actId: string, uid: string) 
   );
   return (rows as any[])[0] || null;
 };
+
+export const updateExpectationService = async (
+  actId: string,
+  uid: string,
+  userExp: string
+): Promise<boolean> => {
+  const [result] = await pool.execute<ResultSetHeader>(
+    "UPDATE expectation SET user_exp = ? WHERE act_id = ? AND uid = ?",
+    [userExp, actId, uid]
+  );
+  return result.affectedRows > 0; // true ถ้า update สำเร็จ
+};

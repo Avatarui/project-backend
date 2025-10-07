@@ -25,7 +25,7 @@ router.post(
   register                        
 );
 
-router.post('/loginwithemail', loginWithEmail);
+router.post('/loginwithemail',loginWithEmail);
 router.post('/loginwithgoogle', loginWithGoogle);
 // Protected routes
 router.get('/getProfile', authenticateToken, getProfile);

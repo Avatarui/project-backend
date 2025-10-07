@@ -17,3 +17,8 @@ export interface UpdateCurrentValueRequest {
 export interface IncreaseCurrentValueRequest {
   amount: number;
 }
+
+export interface DailyOverallPercent {
+  date: string;
+  overall_percent: number;
+}
