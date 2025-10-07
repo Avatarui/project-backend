@@ -24,14 +24,13 @@ export const addActivityDetail = async (req: AuthRequest, res: Response) => {
     if (!unit) missingFields.push("unit");
     if (round === undefined) missingFields.push("round");
     if (!message) missingFields.push("message");
-   return res.status(400).json({
-    message: "Missing required fields",
-    missing: missingFields
-  });
+    return res.status(400).json({
+      message: "Missing required fields",
+      missing: missingFields,
+    });
   }
 
   try {
-
     const act_detail_id = await activityDetailService.insertActivityDetail({
       uid,
       act_id,
@@ -56,6 +55,8 @@ export const addActivityDetail = async (req: AuthRequest, res: Response) => {
 export const deleteActivityDetail = async (req: AuthRequest, res: Response) => {
   const uid = req.user?.uid;
   const act_detail_id = req.query.act_detail_id as string;
+  console.log("🔍 act_detail_id =", req.query.act_detail_id);
+
   if (!uid) return res.status(401).json({ message: "Unauthorized" });
   if (!act_detail_id)
     return res.status(400).json({ message: "act_detail_id query required" });
@@ -101,11 +102,14 @@ export const getTodayCurrentValue = async (req: AuthRequest, res: Response) => {
   }
 
   try {
-    const current = await ActivityHistoryService.getTodayActionSum(uid, act_detail_id);
+    const current = await ActivityHistoryService.getTodayActionSum(
+      uid,
+      act_detail_id
+    );
 
     return res.status(200).json({
       act_detail_id,
-      current_value: current, 
+      current_value: current,
     });
   } catch (error) {
     console.error(error);
@@ -181,18 +185,21 @@ export const updateCurrentValue = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getDailyOverallPercentController = async (req: AuthRequest, res: Response) => {
+export const getDailyOverallPercentController = async (
+  req: AuthRequest,
+  res: Response
+) => {
   try {
     const uid = req.user?.uid;
-    console.log('User ID from token:', uid);
+    console.log("User ID from token:", uid);
     if (!uid) {
-      return res.status(401).json({ message: 'User not authenticated' });
+      return res.status(401).json({ message: "User not authenticated" });
     }
 
     const data = await getDailyOverallPercent(uid);
     return res.status(200).json({ data });
   } catch (error) {
-    console.error('Error fetching daily overall percent:', error);
-    return res.status(500).json({ message: 'Internal server error' });
+    console.error("Error fetching daily overall percent:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
