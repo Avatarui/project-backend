@@ -23,7 +23,7 @@ export const insertActivityDetail = async (data: ActivityDetail) => {
 
 export const deleteActivityDetailById = async (
   uid: string,
-  act_detail_id: string | number
+  act_detail_id: number
 ) => {
   const [result] = await pool.execute<ResultSetHeader>(
     `DELETE FROM activity_detail WHERE act_detail_id = ? AND uid = ?`,

@@ -54,28 +54,33 @@ export const addActivityDetail = async (req: AuthRequest, res: Response) => {
 // ลบกิจกรรม
 export const deleteActivityDetail = async (req: AuthRequest, res: Response) => {
   const uid = req.user?.uid;
-  const act_detail_id = req.query.act_detail_id as string;
-  console.log("🔍 act_detail_id =", req.query.act_detail_id);
+  const act_detail_id_raw = req.query.act_detail_id;
+  const act_detail_id = Number(act_detail_id_raw);
+
+  console.log("🔍 act_detail_id_raw =", act_detail_id_raw, "parsed =", act_detail_id, "uid =", uid);
 
   if (!uid) return res.status(401).json({ message: "Unauthorized" });
-  if (!act_detail_id)
-    return res.status(400).json({ message: "act_detail_id query required" });
+  if (!act_detail_id || Number.isNaN(act_detail_id))
+    return res.status(400).json({ message: "act_detail_id query required or invalid" });
 
   try {
     const affectedRows = await activityDetailService.deleteActivityDetailById(
       uid,
       act_detail_id
     );
+
     if (!affectedRows)
       return res.status(404).json({ message: "Activity detail not found" });
+
     return res
       .status(200)
       .json({ message: "Activity detail deleted successfully" });
   } catch (error) {
-    console.error(error);
+    console.error("❌ deleteActivityDetail error:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
 
 // รายการของฉัน
 export const getMyActivityDetails = async (req: AuthRequest, res: Response) => {
