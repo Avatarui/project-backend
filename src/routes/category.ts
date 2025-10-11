@@ -24,7 +24,7 @@ router.post(
   "/addDefaultCategory",
   authenticateToken,
   requireAdmin,
-  upload.single("cateImage"),
+  // upload.single("cateImage"),
   addCategory
 );
 
@@ -46,7 +46,7 @@ router.put(
   authenticateToken,
   requireAdmin,
   // ถ้าต้องการรองรับการอัปเดตรูป: เปิดคอมเมนต์บรรทัดถัดไป
-  upload.single("cateImage"),
+  // upload.single("cateImage"),
   updateCategory
 )
 

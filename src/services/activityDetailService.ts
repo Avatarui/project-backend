@@ -127,3 +127,22 @@ export async function getDailyOverallPercent(uid: string): Promise<DailyOverallP
     overall_percent: Number(row.overall_percent)
   }));
 }
+export const getActiveActivitiesByUid = async (uid: string) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT *
+       FROM activity_detail
+       WHERE uid = ?
+         AND (
+           (round = 'week' AND DATEDIFF(CURDATE(), create_at) < 7)
+           OR
+           (round = 'day' AND DATEDIFF(CURDATE(), create_at) < 1)
+         )`,
+      [uid]
+    );
+    return rows;
+  } catch (error) {
+    console.error("❌ Error in getActiveActivitiesByUid:", error);
+    throw error;
+  }
+};

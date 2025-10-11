@@ -208,3 +208,18 @@ export const getDailyOverallPercentController = async (
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+export const getActData = async (req: AuthRequest, res: Response) => {
+  const uid = req.user?.uid;
+
+  if (!uid) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  try {
+    const activities = await activityDetailService.getActiveActivitiesByUid(uid);
+    return res.status(200).json(activities);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
