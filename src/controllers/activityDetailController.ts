@@ -223,7 +223,7 @@ export const getOverallPercentController = async (
 };
 export const getActData = async (req: AuthRequest, res: Response) => {
   const uid = req.user?.uid;
-
+  
   if (!uid) {
     return res.status(401).json({ message: "Unauthorized" });
   }

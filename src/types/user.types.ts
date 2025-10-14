@@ -17,7 +17,7 @@ export interface User {
 // ========== Enum Types ==========
 export type UserRole = 'admin' | 'member';
 export type UserStatus = 'active' | 'suspended' | 'deleted';
-export type UserStatusSelf = 'active' | 'suspended'; // สำหรับ user เปลี่ยนสถานะตัวเอง
+export type UserStatusSelf = 'active' | 'suspended' | 'deleted'; // สำหรับ user เปลี่ยนสถานะตัวเอง
 
 // ========== Authentication Types ==========
 export interface UserRegister {
