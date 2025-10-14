@@ -1,14 +1,14 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import admin from "firebase-admin";
+import { auth } from "../config/firebase";
 import { RowDataPacket } from "mysql2";
 import pool from "../config/database";
 import { JwtPayload, UserRow, UserProfile } from "../types/auth.types";
 import { log } from "console";
 
 export class AuthService {
-  static async createFirebaseUser(email: string, password: string, username: string) {
-    return await admin.auth().createUser({
+   static async createFirebaseUser(email: string, password: string, username: string) {
+    return await auth.createUser({
       email,
       password,
       displayName: username,
@@ -20,7 +20,7 @@ export class AuthService {
   }
 
   static async verifyIdToken(idToken: string) {
-    return await admin.auth().verifyIdToken(idToken);
+    return await auth.verifyIdToken(idToken); // ใช้ instance auth
   }
 
   static async getUserByUid(uid: string): Promise<UserRow | null> {
