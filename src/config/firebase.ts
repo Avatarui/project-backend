@@ -19,9 +19,14 @@ console.log('FIREBASE keys snapshot:', {
   FIREBASE_CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL,
   PRIVATE_KEY_LEN: process.env.FIREBASE_PRIVATE_KEY?.length,
 });
+console.log('🔥 FIREBASE STORAGE CONFIG:', {
+  FIREBASE_BUCKET: process.env.FIREBASE_BUCKET,
+  STORAGE_BUCKET: process.env.STORAGE_BUCKET,
+});
+
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
-  // storageBucket: process.env.FIREBASE_BUCKET,
+  storageBucket: process.env.STORAGE_BUCKET,
 });
 
 export const auth = admin.auth();
