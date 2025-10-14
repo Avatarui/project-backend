@@ -3,7 +3,7 @@ import { Response } from "express";
 import { AuthRequest } from "../middlewares/auth";
 import * as activityDetailService from "../services/activityDetailService";
 import { ActivityHistoryService } from "../services/activityHistoryService";
-import { getDailyOverallPercent } from "../services/activityDetailService";
+import { getOverallPercent } from "../services/activityDetailService";
 
 // เพิ่มกิจกรรม
 export const addActivityDetail = async (req: AuthRequest, res: Response) => {
@@ -57,11 +57,20 @@ export const deleteActivityDetail = async (req: AuthRequest, res: Response) => {
   const act_detail_id_raw = req.query.act_detail_id;
   const act_detail_id = Number(act_detail_id_raw);
 
-  console.log("🔍 act_detail_id_raw =", act_detail_id_raw, "parsed =", act_detail_id, "uid =", uid);
+  console.log(
+    "🔍 act_detail_id_raw =",
+    act_detail_id_raw,
+    "parsed =",
+    act_detail_id,
+    "uid =",
+    uid
+  );
 
   if (!uid) return res.status(401).json({ message: "Unauthorized" });
   if (!act_detail_id || Number.isNaN(act_detail_id))
-    return res.status(400).json({ message: "act_detail_id query required or invalid" });
+    return res
+      .status(400)
+      .json({ message: "act_detail_id query required or invalid" });
 
   try {
     const affectedRows = await activityDetailService.deleteActivityDetailById(
@@ -80,7 +89,6 @@ export const deleteActivityDetail = async (req: AuthRequest, res: Response) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
-
 
 // รายการของฉัน
 export const getMyActivityDetails = async (req: AuthRequest, res: Response) => {
@@ -190,21 +198,26 @@ export const updateCurrentValue = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getDailyOverallPercentController = async (
+export const getOverallPercentController = async (
   req: AuthRequest,
   res: Response
 ) => {
   try {
+    console.log("Authorization header:", req.headers.authorization);
     const uid = req.user?.uid;
-    console.log("User ID from token:", uid);
     if (!uid) {
       return res.status(401).json({ message: "User not authenticated" });
     }
 
-    const data = await getDailyOverallPercent(uid);
+    // รับพารามิเตอร์ช่วงเวลา: daily, month, year
+    const range = (req.query.range as string) || "daily";
+    console.log(`Fetching overall percent for ${range}`);
+
+    const data = await getOverallPercent(uid, range);
+    
     return res.status(200).json({ data });
   } catch (error) {
-    console.error("Error fetching daily overall percent:", error);
+    console.error("Error fetching overall percent:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -216,10 +229,27 @@ export const getActData = async (req: AuthRequest, res: Response) => {
   }
 
   try {
-    const activities = await activityDetailService.getActiveActivitiesByUid(uid);
+    const activities = await activityDetailService.getActiveActivitiesByUid(
+      uid
+    );
     return res.status(200).json(activities);
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+export const getHistory = async (req: AuthRequest, res: Response) => {
+  const uid = req.user?.uid;    
+  if (!uid) return res.status(401).json({ message: "Unauthorized" });
+  try {
+      const history = await activityDetailService.getAllActivity(uid);
+      console.log(history);
+
+      return res.status(200).json(history);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+}
+
+

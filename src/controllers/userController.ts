@@ -43,18 +43,20 @@ export const editUserInfo = async (
       });
     }
 
-    // รับเฉพาะฟิลด์ที่อนุญาตให้อัปเดต (ทั้งหมดเป็น optional)
-    const { username, email, photo_url, birthday } = req.body as Partial<EditUserInfo>;
+    // ✅ ไม่รับ email เลย
+    const { username, photo_url, birthday } = req.body as Partial<EditUserInfo>;
 
-    // แปลง '' เป็น null เพื่อไม่ให้ไปเป็น undefined (mysql2 ไม่รับ undefined)
     const payload: Partial<EditUserInfo> = {
       username: username ?? undefined,
-      email: email ?? undefined,
+      // email: email ?? undefined, // ❌ ลบบรรทัดนี้
       photo_url: photo_url ?? undefined,
-      birthday: birthday ?? undefined, // อนุญาต null เพื่อล้างค่า
+      birthday: birthday ?? undefined,
     };
 
-    const affectedRows = await UserService.updateUserInfo(req.user.uid, payload);
+    const affectedRows = await UserService.updateUserInfo(
+      req.user.uid,
+      payload
+    );
 
     if (affectedRows === 0) {
       return res.status(404).json({
@@ -89,13 +91,11 @@ export const changeUserStatus = async (
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Validation failed",
-          data: errors.array(),
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Validation failed",
+        data: errors.array(),
+      });
     }
 
     const { status, uid, reason } = req.body;
@@ -152,13 +152,11 @@ export const updateMyStatus = async (
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Validation failed",
-          data: errors.array(),
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Validation failed",
+        data: errors.array(),
+      });
     }
 
     const { status, reason } = req.body;

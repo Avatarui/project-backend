@@ -12,6 +12,7 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME,
   waitForConnections: true,
   connectionLimit: 10,
+  connectTimeout: 20000,
   ssl: {
     ca: fs.readFileSync(path.join(__dirname, '../../isrgrootx1.pem')),
   },

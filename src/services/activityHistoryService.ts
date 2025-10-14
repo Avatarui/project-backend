@@ -59,6 +59,7 @@ export class ActivityHistoryService {
   static async deleteHistoryById(history_id: number) {
     await pool.execute(`DELETE FROM activity_history WHERE history_id = ?`, [history_id]);
   }
+
   static async getDailyPercent(uid: string, act_detail_id: string) {
     const [rows] = await pool.execute<RowDataPacket[]>(
       `SELECT 
@@ -74,4 +75,6 @@ export class ActivityHistoryService {
     );
     return rows;
   }
+
+  
 }

@@ -1,15 +1,15 @@
 import { Router } from "express";
 import { editUserInfo, changeUserStatus, updateMyStatus, getUserInfo } from "../controllers/userController";
-import { authenticateToken, adminAuthenticateToken } from "../middlewares/auth";
+import { authenticateToken, adminAuthenticateToken, requireAdmin } from "../middlewares/auth";
 
 const router = Router();
-
+router.use(authenticateToken);
 // Member route: edit user info
-router.put("/edit", authenticateToken, editUserInfo);
-router.post("/mystatus", authenticateToken, updateMyStatus);
+router.put("/edit", editUserInfo);
+router.post("/mystatus" , updateMyStatus);
 
 // Admin route: change user status
-router.put("/changeStatus", adminAuthenticateToken, changeUserStatus);
-router.get("/:uid", authenticateToken, getUserInfo);
+router.put("/changeStatus", requireAdmin, changeUserStatus);
+router.get("/:uid", getUserInfo);
 
 export default router;

@@ -33,7 +33,7 @@ export class AuthService {
   }
 
   static async getUserProfile(uid: string): Promise<UserProfile | null> {
-    console.log("Fetching user profile for UID:", uid);
+    // console.log("Fetching user profile for UID:", uid);
     const [rows] = await pool.execute(
       "SELECT uid, email, username, photo_url, role, status, birthday FROM users WHERE uid = ?",
       [uid]

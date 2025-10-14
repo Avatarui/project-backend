@@ -155,10 +155,24 @@ export const loginWithGoogle = async (req: Request, res: Response) => {
     }
 
     const user = await AuthService.getUserProfile(uid);
+    
+    // ✅ สร้าง JWT token
+    const token = AuthService.generateJWT({
+      userId: user!.uid,  // ใช้ userId ตาม JwtPayload interface
+      role: user!.role,
+    });
 
+    // ✅ ส่ง flat structure (ไม่ nest ใน user object)
     res.status(200).json({
       message: "Token verified and user exists",
-      user,
+      uid: user!.uid,
+      email: user!.email,
+      username: user!.username,
+      role: user!.role,
+      token: token,              // ส่ง JWT token
+      photo_url: user!.photo_url,
+      birthday: user!.birthday,
+      status: user!.status,
     });
   } catch (error) {
     console.error("Token verification error:", error);
