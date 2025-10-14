@@ -1,6 +1,9 @@
 import { RowDataPacket, ResultSetHeader } from "mysql2";
 import pool from "../config/database";
-import { ActivityDetail, DailyOverallPercent } from "../types/activityDetail.types";
+import {
+  ActivityDetail,
+  DailyOverallPercent,
+} from "../types/activityDetail.types";
 
 export const insertActivityDetail = async (data: ActivityDetail) => {
   const timeRemindJson = JSON.stringify(data.time_remind ?? []);
@@ -64,7 +67,7 @@ export const getActivityDetailsWithMaster = async (uid: string) => {
   );
 
   return rows as (ActivityDetail & {
-    act_id: string;          // เพิ่มใน type ด้วย
+    act_id: string; // เพิ่มใน type ด้วย
     act_name: string;
     act_pic: string;
     current_value: number;
@@ -106,25 +109,39 @@ export const getCurrentAndGoal = async (
 };
 
 //---------------------------------------
-export async function getDailyOverallPercent(uid: string): Promise<DailyOverallPercent[]> {
-  console.log('Fetching daily overall percent for UID:', uid);
+export async function getOverallPercent(
+  uid: string,
+  range: string
+): Promise<{ date: string; overall_percent: number }[]> {
+  let groupBy = "DATE(ah.create_at)";
+  let orderBy = "DATE(ah.create_at)";
+
+  // ปรับการ group ตามช่วงเวลาที่ต้องการ
+  if (range === "month") {
+    groupBy = "DATE_FORMAT(ah.create_at, '%Y-%m')"; // เดือน
+    orderBy = "DATE_FORMAT(ah.create_at, '%Y-%m')";
+  } else if (range === "year") {
+    groupBy = "YEAR(ah.create_at)"; // ปี
+    orderBy = "YEAR(ah.create_at)";
+  }
+
   const sql = `
     SELECT
-      DATE(ah.create_at) AS date,
+      ${groupBy} AS date,
       LEAST(SUM(ah.action) / SUM(ad.goal) * 100, 100) AS overall_percent
     FROM activity_history ah
     JOIN activity_detail ad
       ON ah.act_detail_id = ad.act_detail_id
     WHERE ah.uid = ?
-    GROUP BY DATE(ah.create_at)
-    ORDER BY DATE(ah.create_at)
+    GROUP BY ${groupBy}
+    ORDER BY ${orderBy};
   `;
 
   const [rows] = await pool.execute(sql, [uid]);
-  
-  return (rows as any[]).map(row => ({
+
+  return (rows as any[]).map((row) => ({
     date: row.date,
-    overall_percent: Number(row.overall_percent)
+    overall_percent: Number(row.overall_percent) || 0,
   }));
 }
 export const getActiveActivitiesByUid = async (uid: string) => {
@@ -143,6 +160,25 @@ export const getActiveActivitiesByUid = async (uid: string) => {
     return rows;
   } catch (error) {
     console.error("❌ Error in getActiveActivitiesByUid:", error);
+    throw error;
+  }
+};
+export const getAllActivity = async (uid: string) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT 
+         ad.*,       -- ข้อมูล activity_detail
+         a.act_name,
+         a.act_pic
+       FROM activity_detail ad
+       JOIN activity a ON ad.act_id = a.act_id
+       WHERE ad.uid = ?`,
+      [uid]
+    );
+
+    return rows;
+  } catch (error) {
+    console.error("Error fetching activities:", error);
     throw error;
   }
 };

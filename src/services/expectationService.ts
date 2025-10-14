@@ -6,7 +6,7 @@ export const createExpectationService = async (
   data: ExpectationBody
 ): Promise<number> => {
   const { act_id, uid, user_exp } = data;
-  console.log(data);
+  // console.log(data);
   const [result] = await pool.execute<ResultSetHeader>(
     "INSERT INTO expectation (act_id, uid, user_exp) VALUES (?, ?, ?)",
     [act_id, uid, user_exp]

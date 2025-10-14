@@ -47,7 +47,7 @@ export const checkExpectationByActId = async (req: Request, res: Response) => {
   const { act_id, uid } = req.body;
 
   // ปริ้นค่าที่รับมา
-  console.log("Received in checkExpectationByActId:", req.body);
+  // console.log("Received in checkExpectationByActId:", req.body);
 
   if (!act_id || !uid) {
     return res.status(400).json({ message: "act_id and uid are required" });

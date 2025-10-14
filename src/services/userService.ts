@@ -16,20 +16,22 @@ export class UserService {
     userData: Partial<EditUserInfo>
   ): Promise<number> {
     try {
-      const { username, email, photo_url, birthday } = userData;
+      // ✅ ลบ email ออก แม้ client จะส่งมา
+      const { username, photo_url, birthday } = userData;
+      // const { username, email, photo_url, birthday } = userData; // ❌ เดิม
 
       const fields: string[] = [];
       const values: any[] = [];
 
-      // ใส่เฉพาะฟิลด์ที่ถูกส่งมา (ไม่ใช่ undefined)
       if (username !== undefined) {
         fields.push("username = ?");
         values.push(username ?? null);
       }
-      if (email !== undefined) {
-        fields.push("email = ?");
-        values.push(email ?? null);
-      }
+      // ❌ ลบส่วน email ทั้งหมด
+      // if (email !== undefined) {
+      //   fields.push("email = ?");
+      //   values.push(email ?? null);
+      // }
       if (photo_url !== undefined) {
         fields.push("photo_url = ?");
         values.push(photo_url ?? null);
@@ -39,16 +41,11 @@ export class UserService {
         values.push(birthday ?? null);
       }
 
-      if (fields.length === 0) return 0; // ไม่มีอะไรให้แก้
+      if (fields.length === 0) return 0;
 
-      // (ทางเลือก) อัปเดตเวลาแก้ไขล่าสุด
-      // fields.push("updated_at = NOW()");
-
-      // ✅ สร้าง setClause แยก เพื่อไม่ให้มีคอมม่าตัวท้าย
       const setClause = fields.join(", ");
-
-      const sql = `UPDATE users SET ${setClause} WHERE uid = ? `;
-      values.push(uid); // uid ต้องอยู่ท้ายสุดตรงกับ WHERE
+      const sql = `UPDATE users SET ${setClause} WHERE uid = ?`;
+      values.push(uid);
 
       const [result]: any = await pool.execute(sql, values);
       return result.affectedRows;
@@ -67,7 +64,7 @@ export class UserService {
 
       const sql = `
         UPDATE users 
-        SET status = ?, updated_at = NOW() 
+        SET status = ? 
         WHERE uid = ? AND status != ?
       `;
 
