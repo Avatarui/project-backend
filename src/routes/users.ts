@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { editUserInfo, changeUserStatus, updateMyStatus, getUserInfo } from "../controllers/userController";
-import { authenticateToken, adminAuthenticateToken, requireAdmin } from "../middlewares/auth";
+import { authenticateToken, requireAdmin } from "../middlewares/auth";
 
 const router = Router();
 router.use(authenticateToken);

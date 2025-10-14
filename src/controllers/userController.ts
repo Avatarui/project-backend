@@ -122,11 +122,12 @@ export const changeUserStatus = async (
 
     // ✅ Insert Action Log
     if (req.user) {
+      // ใน controller เช่น updateMyStatus หรือ changeUserStatus
       await ActionLogService.insertActionLog({
-        target: uid,
-        action: status as "suspend" | "deleted",
+        target: req.user!.uid, // uid ของผู้ใช้ที่ถูกกระทำ
+        action: status as "active" | "suspended" | "deleted", // ✅ ตรงกับ ENUM
         reason: reason || "",
-        actionBy: req.user.uid,
+        actionBy: req.user!.uid, // uid ของผู้ที่กระทำ (กรณี user = ตัวเอง)
       });
     }
 
@@ -185,11 +186,12 @@ export const updateMyStatus = async (
     }
 
     // ✅ Insert Action Log
+    // ใน controller เช่น updateMyStatus หรือ changeUserStatus
     await ActionLogService.insertActionLog({
-      target: req.user.uid,
-      action: status as "suspend" | "deleted",
+      target: req.user!.uid, // uid ของผู้ใช้ที่ถูกกระทำ
+      action: status as "active" | "suspended" | "deleted", // ✅ ตรงกับ ENUM
       reason: reason || "",
-      actionBy: req.user.uid,
+      actionBy: req.user!.uid, // uid ของผู้ที่กระทำ (กรณี user = ตัวเอง)
     });
 
     return res.status(200).json({

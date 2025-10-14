@@ -5,7 +5,7 @@ export const USER_STATUS = {
 } as const;
 
 export const VALID_ADMIN_STATUSES: readonly string[] = ['active', 'suspended', 'deleted'];
-export const VALID_SELF_STATUSES: readonly string[] = ['active', 'suspended'];
+export const VALID_SELF_STATUSES: readonly string[] = ['active', 'suspended', 'deleted'];
 
 export const ERROR_MESSAGES = {
   USER_NOT_FOUND: "User not found or no changes were made.",

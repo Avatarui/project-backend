@@ -1,10 +1,9 @@
-
 import pool from "../config/database";
 
 export class ActionLogService {
   static async insertActionLog(params: {
     target: string;
-    action: "suspend" | "deleted";
+    action: 'active' | 'suspended' | 'deleted'; // ✅ ENUM ตรงกับ DB
     reason: string;
     actionBy: string;
   }): Promise<void> {
