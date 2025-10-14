@@ -14,7 +14,11 @@ const serviceAccount = {
   auth_provider_x509_cert_url: process.env.FIREBASE_AUTH_PROVIDER_CERT_URL!,
   client_x509_cert_url: process.env.FIREBASE_CLIENT_CERT_URL!,
 };
-
+console.log('FIREBASE keys snapshot:', {
+  FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
+  FIREBASE_CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL,
+  PRIVATE_KEY_LEN: process.env.FIREBASE_PRIVATE_KEY?.length,
+});
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
   // storageBucket: process.env.FIREBASE_BUCKET,
