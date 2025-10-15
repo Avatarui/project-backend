@@ -209,6 +209,47 @@ export const updateMyStatus = async (
 /**
  * ดึงข้อมูลผู้ใช้ (เพิ่มเติม)
  */
+export const getUsernamesByUids = async (req: Request, res: Response) => {
+  try {
+    const uids: unknown = req.body?.uids;
+
+    if (!Array.isArray(uids)) {
+      return res.status(400).json({ success: false, message: "uids must be an array" });
+    }
+
+    // ทำความสะอาด: string, trim, ตัดค่าว่าง, unique, จำกัดขนาด
+    const cleaned = [...new Set(
+      uids
+        .filter((x): x is string => typeof x === "string")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0)
+    )];
+
+    if (cleaned.length === 0) {
+      return res.status(200).json({ success: true, data: { usernames: {} } });
+    }
+    if (cleaned.length > 200) { // ป้องกัน payload ใหญ่ไป
+      return res.status(413).json({ success: false, message: "Too many uids (max 200)" });
+    }
+
+    const map = await UserService.getUsernamesMapByUids(cleaned);
+
+    // คืนค่าเป็น map { uid: username|null } - ถ้าไม่พบให้เป็น null
+    const usernames: Record<string, string | null> = {};
+    for (const uid of cleaned) {
+      usernames[uid] = map[uid] ?? null;
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Usernames retrieved successfully",
+      data: { usernames },
+    });
+  } catch (error) {
+    console.error("getUsernamesByUids error:", error);
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
 export const getUserInfo = async (req: Request, res: Response<ApiResponse>) => {
   try {
     const { uid } = req.params;
