@@ -1,4 +1,6 @@
+import { RowDataPacket } from "mysql2";
 import pool from "../config/database";
+import { ActivityItemSummary, ActivitySummary } from "../types/activity";
 
 export const checkCategoryExists = async (cate_id: string, uid: string) => {
   const [rows] = await pool.execute(
@@ -118,4 +120,76 @@ export const deleteActivityDB = async (
   }
 
   await pool.execute(sql, params);
+};
+export const countActivitiesDB = async (uid: string) => {
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `SELECT COUNT(*) AS cnt
+     FROM activity_detail
+     WHERE uid = ?`,
+    [uid]
+  );
+  return Number((rows as any[])[0]?.cnt ?? 0);
+};
+
+/** สรุปกิจกรรม: เทียบ total_action vs total_goal ต่อ act_detail_id ของ uid */
+export const getActivitySummaryDB = async (uid: string): Promise<ActivitySummary> => {
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `
+    WITH goals AS (
+      SELECT
+        ad.act_detail_id,
+        ad.uid,
+        ROUND(SUM(
+          CASE ad.round
+            WHEN 'day'  THEN COALESCE(ad.goal, 0) * 1
+            WHEN 'week' THEN COALESCE(ad.goal, 0) * 7
+            ELSE 0
+          END
+        ), 2) AS total_goal
+      FROM activity_detail ad
+      WHERE ad.uid = ?
+      GROUP BY ad.act_detail_id, ad.uid
+    ),
+    actions AS (
+      SELECT
+        ah.act_detail_id,
+        ROUND(SUM(COALESCE(ah.action, 0)), 2) AS total_action
+      FROM activity_history ah
+      INNER JOIN activity_detail ad ON ad.act_detail_id = ah.act_detail_id
+      WHERE ad.uid = ?
+      GROUP BY ah.act_detail_id
+    )
+    SELECT
+      g.act_detail_id,
+      g.total_goal,
+      COALESCE(a.total_action, 0) AS total_action,
+      CASE
+        WHEN COALESCE(a.total_action, 0) = g.total_goal THEN 1
+        ELSE 0
+      END AS is_success
+    FROM goals g
+    LEFT JOIN actions a ON a.act_detail_id = g.act_detail_id
+    ORDER BY g.act_detail_id ASC
+    `,
+    [uid, uid]
+  );
+
+  const items: ActivityItemSummary[] = (rows as any[]).map((r) => ({
+    act_detail_id: Number(r.act_detail_id),
+    total_goal: Number(r.total_goal),
+    total_action: Number(r.total_action),
+    is_success: Number(r.is_success) === 1,
+  }));
+
+  const total_activities = await countActivitiesDB(uid);
+  const success_activities = items.reduce((acc, it) => acc + (it.is_success ? 1 : 0), 0);
+  const failed_activities = Math.max(total_activities - success_activities, 0);
+
+  return {
+    uid,
+    total_activities,
+    success_activities,
+    failed_activities,
+    items,
+  };
 };

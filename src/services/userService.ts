@@ -1,3 +1,4 @@
+import { RowDataPacket } from "mysql2";
 import pool from "../config/database";
 import {
   EditUserInfo,
@@ -75,14 +76,10 @@ export class UserService {
       throw error;
     }
   }
-
-  /**
-   * ตรวจสอบว่าผู้ใช้มีอยู่จริงและไม่ได้ถูกลบ
-   */
   static async checkUserExists(uid: string): Promise<boolean> {
     try {
       const [rows]: any = await pool.execute(
-        "SELECT uid FROM users WHERE uid = ? AND status != 'deleted' LIMIT 1",
+        "SELECT uid FROM users WHERE uid = ?  LIMIT 1",
         [uid]
       );
       return rows.length > 0;
@@ -98,7 +95,7 @@ export class UserService {
   static async getUserByUid(uid: string) {
     try {
       const [rows]: any = await pool.execute(
-        "SELECT uid, email, username, photo_url, role, status, birthday FROM users WHERE uid = ? AND status != 'deleted' LIMIT 1",
+        "SELECT uid, email, username, photo_url, role, status, birthday FROM users WHERE uid = ?  LIMIT 1",
         [uid]
       );
       return rows.length > 0 ? rows[0] : null;
@@ -106,5 +103,28 @@ export class UserService {
       console.error("Error in getUserByUid:", error);
       throw error;
     }
+  }
+
+  static async getUsernamesMapByUids(uids: string[]): Promise<Record<string, string>> {
+    if (uids.length === 0) return {};
+
+    // สร้าง placeholders (?, ?, ...)
+    const placeholders = uids.map(() => "?").join(", ");
+
+    const sql = `
+      SELECT uid, username
+      FROM users
+      WHERE uid IN (${placeholders})
+    `;
+
+    const [rows] = await pool.execute<RowDataPacket[]>(sql, uids);
+
+    const map: Record<string, string> = {};
+    for (const r of rows) {
+      const uid = (r as any).uid as string;
+      const username = (r as any).username as string | null;
+      if (uid) map[uid] = username ?? "";
+    }
+    return map;
   }
 }

@@ -11,6 +11,7 @@ import expectationRoute from "./routes/exp_user";
 import activityDetailRoutes from "./routes/act_detail";
 import activityHistoryRoutes from "./routes/act_history";
 import userRoute from "./routes/users";
+import actionlogRoutes from "./routes/actionLog";
 
 // Import Firebase Admin SDK instances
 import { auth, db, bucket } from "./config/firebase";
@@ -34,6 +35,7 @@ app.use("/api/expuser", expectationRoute);
 app.use("/api/activityDetail", activityDetailRoutes);
 app.use("/api/activityHistory", activityHistoryRoutes);
 app.use("/api/users", userRoute);
+app.use("/api/actionlog",actionlogRoutes);
 
 // Health check
 app.get("/health", (req, res) => {
