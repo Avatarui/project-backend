@@ -118,3 +118,39 @@ export const deleteActivity = async (req: AuthRequest, res: Response) => {
     return res.status(500).json({ message: "Database error" });
   }
 };
+export const countActivities = async (req: AuthRequest, res: Response) => {
+  try {
+    const role = req.user?.role;
+    const authUid = req.user?.uid;
+    if (!role || !authUid) {
+      return res.status(401).json({ message: "Unauthenticated" });
+    }
+
+    // ถ้าเป็น admin และมีการส่ง ?uid= เป้าหมายมา ให้ใช้ uid นั้น
+    let targetUid = authUid;
+    const qUid = req.query.uid;
+    if (role === "admin" && typeof qUid === "string" && qUid.trim().length > 0) {
+      targetUid = qUid.trim();
+    }
+
+    const count = await activityService.countActivitiesDB(targetUid);
+    return res.status(200).json({ uid: targetUid, total_activities: count });
+  } catch (error) {
+    console.error("Error counting activities:", { user: req.user }, error);
+    return res.status(500).json({ message: "Database error" });
+  }
+};
+
+export const getActivitySummary = async (req: AuthRequest, res: Response) => {
+  try {
+    const role = req.user?.role;
+    const uid = req.user?.uid;
+    if (!role || !uid) return res.status(401).json({ message: "Unauthenticated" });
+
+    const summary = await activityService.getActivitySummaryDB(uid);
+    return res.status(200).json(summary);
+  } catch (error) {
+    console.error("Error fetching activity summary:", { user: req.user }, error);
+    return res.status(500).json({ message: "Database error" });
+  }
+};

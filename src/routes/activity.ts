@@ -1,9 +1,11 @@
 import { Router } from "express";
 import multer from "multer";
 import {
+  countActivities,
   createActivity,
   deleteActivity,
   getActivities,
+  getActivitySummary,
   updateActivity,
 } from "../controllers/activityController";
 import { authenticateToken } from "../middlewares/auth";
@@ -30,4 +32,6 @@ router.post("/createAct", authenticateToken, createActivity);
 // router.post("/createAct", upload.single("act_pic"), createActivity);
 router.put("/updateAct", upload.single("act_pic"),updateActivity);
 router.post("/deleteAct", deleteActivity);
+router.get("/count",authenticateToken,countActivities); // /api/activity/count
+router.get("/summary", authenticateToken,getActivitySummary); // /api/activity/summary
 export default router;
