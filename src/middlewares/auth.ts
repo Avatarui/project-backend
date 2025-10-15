@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import admin from "firebase-admin";
+import { auth, db, bucket } from '../config/firebase';
 import { getUserByUID } from "../models/User";
 import { User } from "../types/user.types";
 import { log } from "console";
@@ -14,13 +14,16 @@ export const authenticateToken = async (
 ) => {
   const authHeader = req.headers["authorization"];
   const token = authHeader?.split(" ")[1];
-  console.log(token);
+
   if (!token) return res.status(401).json({ message: "Access token required" });
+
   try {
-    const decodedToken = await admin.auth().verifyIdToken(token);
+    const decodedToken = await auth.verifyIdToken(token); // ใช้ auth จาก firebase.ts
     const userFromDB = await getUserByUID(decodedToken.uid);
+
     if (!userFromDB)
       return res.status(404).json({ message: "User not found in database" });
+
     req.user = {
       uid: decodedToken.uid,
       email: decodedToken.email || "",
