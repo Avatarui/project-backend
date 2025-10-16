@@ -1,0 +1,141 @@
+// prisma/schema.prisma
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+/**
+ * ===== Enums =====
+ */
+enum Role {
+  member
+  admin
+}
+
+enum UserStatus {
+  active
+  suspended
+  deleted
+}
+
+/**
+ * ===== users =====
+ */
+model users {
+  uid       String     @id @db.VarChar(128)
+  email     String     @unique @db.VarChar(255)
+  username  String     @db.VarChar(100)
+  photo_url String?    @db.Text
+  role      Role       @default(member)
+  birthday  DateTime?  @db.Date
+  status    UserStatus @default(active)
+  password  String?    @db.VarChar(255)
+
+  activity_details activity_detail[]
+  activity_history activity_history[]
+  expectations     expectation[]
+}
+
+/**
+ * ===== category =====
+ */
+model category {
+  cate_id   Int    @id @default(autoincrement())
+  uid       String @db.VarChar(128)
+  cate_name String @db.VarChar(255)
+  cate_pic  String @db.Text
+
+  activities activity[]
+}
+
+/**
+ * ===== activity =====
+ */
+model activity {
+  act_id   Int    @id @default(autoincrement())
+  uid      String @db.VarChar(128)
+  cate_id  Int?
+  act_name String @db.VarChar(255)
+  act_pic  String @db.Text
+
+  category category? @relation(fields: [cate_id], references: [cate_id], onDelete: SetNull, map: "fk_activity_category_cate_id")
+
+  activity_details activity_detail[]
+  expectations     expectation[]
+
+  @@index([cate_id])
+}
+
+/**
+ * ===== activity_detail =====
+ */
+model activity_detail {
+  act_detail_id Int      @id @default(autoincrement())
+  uid           String?  @db.VarChar(128)
+  act_id        Int?
+  goal          Int
+  unit          String   @db.VarChar(128)
+  round         String   @db.VarChar(128)
+  message       String   @db.VarChar(255)
+  time_remind   String   @db.Text
+  create_at     DateTime @default(dbgenerated("(CURRENT_DATE)")) @db.Date
+  current_value Decimal  @default(0.00) @db.Decimal(10, 2)
+
+  users    users?    @relation(fields: [uid], references: [uid], onDelete: SetNull, map: "fk_activity_detail_users_uid")
+  activity activity? @relation(fields: [act_id], references: [act_id], onDelete: SetNull, map: "fk_activity_detail_activity_act_id")
+
+  activity_history activity_history[]
+
+  @@index([uid])
+  @@index([act_id])
+}
+
+/**
+ * ===== activity_history =====
+ */
+model activity_history {
+  history_id    Int      @id @default(autoincrement())
+  act_detail_id Int
+  uid           String   @db.VarChar(128)
+  action        Int
+  create_at     DateTime @default(dbgenerated("(CURRENT_DATE)")) @db.Date
+
+  users           users           @relation(fields: [uid], references: [uid], onDelete: Cascade, map: "fk_activity_history_users_uid")
+  activity_detail activity_detail @relation(fields: [act_detail_id], references: [act_detail_id], onDelete: Cascade, map: "fk_activity_history_detail_id")
+
+  @@index([uid])
+  @@index([act_detail_id])
+}
+
+/**
+ * ===== expectation =====
+ */
+model expectation {
+  exp_id   Int     @id @default(autoincrement())
+  act_id   Int?
+  uid      String? @db.VarChar(128)
+  user_exp String  @db.VarChar(255)
+
+  users    users?    @relation(fields: [uid], references: [uid], onDelete: SetNull, map: "fk_expectation_users_uid")
+  activity activity? @relation(fields: [act_id], references: [act_id], onDelete: SetNull, map: "fk_expectation_activity_act_id")
+
+  @@unique([uid, act_id])
+  @@index([uid])
+  @@index([act_id])
+}
+
+/**
+ * ===== action_log =====
+ */
+model action_log {
+  action_id Int        @id @default(autoincrement())
+  target    String     @db.VarChar(128)
+  action    UserStatus
+  reason    String     @db.Text
+  action_by String     @db.VarChar(128)
+  create_at DateTime   @default(dbgenerated("(CURRENT_DATE)")) @db.Date
+}
