@@ -4,6 +4,7 @@ import { AuthRequest } from "../middlewares/auth";
 import { AuthService } from "../services/authService";
 import { convertDateFormat } from "../utils/dateHelper";
 import { JwtPayload, LoginWithEmailRequest } from "../types/auth.types";
+import { guardActive } from "../utils/guardActive";
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -88,11 +89,17 @@ export const loginWithEmail = async (req: Request, res: Response) => {
     const decodedToken = await AuthService.verifyIdToken(idToken);
     const uid = decodedToken.uid;
 
-    const user = await AuthService.getUserByUid(uid);
+    const user = await AuthService.getUserByUid(uid); // ← ต้องคืนค่า { uid, role, status, ...}
     if (!user) {
-      return res
-        .status(404)
-        .json({ message: "ไม่พบผู้ใช้ที่เกี่ยวข้องกับ Token นี้" });
+      return res.status(404).json({ message: "ไม่พบผู้ใช้ที่เกี่ยวข้องกับ Token นี้" });
+    }
+
+    // ✅ อนุญาตเฉพาะ active
+    if (user.status !== "active") {
+      return res.status(403).json({
+        message: "บัญชีของคุณยังไม่พร้อมใช้งาน กรุณาติดต่อผู้ดูแลระบบ",
+        status: user.status,
+      });
     }
 
     const userRole = user.role || "member";
@@ -103,82 +110,88 @@ export const loginWithEmail = async (req: Request, res: Response) => {
       message: "เข้าสู่ระบบสำเร็จ",
       uid: uid,
       role: userRole,
+      status: user.status,    // ✅ ส่งกลับมาด้วย
       token,
     });
   } catch (error: any) {
     console.error("Backend: Error verifying ID Token or fetching user data:", error);
 
     if (error.code === "auth/id-token-expired") {
-      return res
-        .status(401)
-        .json({ message: "เซสชันหมดอายุ โปรดเข้าสู่ระบบใหม่" });
-    } else if (
-      error.code === "auth/invalid-id-token" ||
-      error.code === "auth/argument-error"
-    ) {
-      return res
-        .status(401)
-        .json({ message: "ID Token ไม่ถูกต้องหรือไม่สมบูรณ์" });
+      return res.status(401).json({ message: "เซสชันหมดอายุ โปรดเข้าสู่ระบบใหม่" });
+    } else if (error.code === "auth/invalid-id-token" || error.code === "auth/argument-error") {
+      return res.status(401).json({ message: "ID Token ไม่ถูกต้องหรือไม่สมบูรณ์" });
     } else if (error.code === "auth/user-not-found") {
-      return res
-        .status(404)
-        .json({ message: "ไม่พบผู้ใช้ที่เกี่ยวข้องกับ Token นี้" });
+      return res.status(404).json({ message: "ไม่พบผู้ใช้ที่เกี่ยวข้องกับ Token นี้" });
     }
 
     return res.status(500).json({ message: "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์" });
   }
 };
 
+
+// controllers/auth.controller.ts (เฉพาะส่วนที่ต่าง)
+
 export const loginWithGoogle = async (req: Request, res: Response) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res
-        .status(401)
-        .json({ message: "No token provided or invalid format" });
+      return res.status(401).json({ message: "No token provided or invalid format" });
     }
-    
+
     const idToken = authHeader.split(" ")[1];
     const decodedToken = await AuthService.verifyIdToken(idToken);
     const uid = decodedToken.uid;
 
     const userExists = await AuthService.checkUserExists(uid);
-    
     if (!userExists) {
-      const { email, name, picture } = decodedToken;
+      const { email, name, picture } = decodedToken as {
+        email?: string;
+        name?: string;
+        picture?: string;
+      };
+
+      // ❌ ไม่กำหนด status ที่นี่ เพื่อคง default จาก DB/Service เดิมของคุณ
       await AuthService.createGoogleUser({
         uid,
         email: email || "",
         username: name || "",
-        photo_url: picture || ""
+        photo_url: picture || "",
+        // status: (ไม่ส่ง) → ให้ DB ใช้ค่า default เดิม
       });
     }
 
     const user = await AuthService.getUserProfile(uid);
-    
-    // ✅ สร้าง JWT token
-    const token = AuthService.generateJWT({
-      userId: user!.uid,  // ใช้ userId ตาม JwtPayload interface
-      role: user!.role,
-    });
+    if (!user) return res.status(404).json({ message: "ไม่พบผู้ใช้" });
 
-    // ✅ ส่ง flat structure (ไม่ nest ใน user object)
-    res.status(200).json({
+    // ✅ ยังตรวจสถานะเหมือนเดิม
+    try {
+      guardActive(user.status);
+    } catch (e: any) {
+      return res.status(e.http || 403).json({ message: e.message, code: e.code, status: user.status });
+    }
+
+    const token = AuthService.generateJWT({ userId: user.uid, role: user.role });
+
+    return res.status(200).json({
       message: "Token verified and user exists",
-      uid: user!.uid,
-      email: user!.email,
-      username: user!.username,
-      role: user!.role,
-      token: token,              // ส่ง JWT token
-      photo_url: user!.photo_url,
-      birthday: user!.birthday,
-      status: user!.status,
+      uid: user.uid,
+      email: user.email,
+      username: user.username,
+      role: user.role,
+      status: user.status,
+      token,
+      photo_url: user.photo_url,
+      birthday: user.birthday,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Token verification error:", error);
-    res.status(401).json({ message: "Invalid or expired token" });
+    if (error.code === "auth/id-token-expired") {
+      return res.status(401).json({ message: "เซสชันหมดอายุ โปรดเข้าสู่ระบบใหม่" });
+    }
+    return res.status(401).json({ message: "Invalid or expired token" });
   }
 };
+
 
 export const getProfile = async (req: AuthRequest, res: Response) => {
   try {

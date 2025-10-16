@@ -25,7 +25,7 @@ export class AuthService {
 
   static async getUserByUid(uid: string): Promise<UserRow | null> {
     const [rows] = await pool.query<(RowDataPacket & UserRow)[]>(
-      "SELECT role FROM users WHERE uid = ? AND status = 'active' LIMIT 1",
+      "SELECT role FROM users WHERE uid = ?  LIMIT 1",
       [uid]
     );
 

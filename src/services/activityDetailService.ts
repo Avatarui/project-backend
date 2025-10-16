@@ -147,13 +147,14 @@ export async function getOverallPercent(
 export const getActiveActivitiesByUid = async (uid: string) => {
   try {
     const [rows] = await pool.query(
-      `SELECT *
-       FROM activity_detail
-       WHERE uid = ?
+      `SELECT ad.*, a.act_name AS activity_name
+       FROM activity_detail ad
+       JOIN activity a ON ad.act_id = a.act_id
+       WHERE ad.uid = ?
          AND (
-           (round = 'week' AND DATEDIFF(CURDATE(), create_at) < 7)
+           (ad.round = 'week' AND DATEDIFF(CURDATE(), ad.create_at) < 7)
            OR
-           (round = 'day' AND DATEDIFF(CURDATE(), create_at) < 1)
+           (ad.round = 'day' AND DATEDIFF(CURDATE(), ad.create_at) < 1)
          )`,
       [uid]
     );
@@ -163,6 +164,7 @@ export const getActiveActivitiesByUid = async (uid: string) => {
     throw error;
   }
 };
+
 export const getAllActivity = async (uid: string) => {
   try {
     const [rows] = await pool.query(
