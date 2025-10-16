@@ -230,3 +230,7 @@ export interface EditUserInfoBody {
   photo_url?: string | null;
   birthday?: string | null; // ส่ง null เพื่อลบค่าได้
 }
+export interface EditUserPayload {
+  username?: string;
+  birthday?: string;
+}

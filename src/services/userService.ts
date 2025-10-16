@@ -1,10 +1,11 @@
-import { RowDataPacket } from "mysql2";
+import { ResultSetHeader, RowDataPacket } from "mysql2";
 import pool from "../config/database";
 import {
   EditUserInfo,
   ChangeUserStatus,
   UserStatus,
   EditUserInfoBody,
+  EditUserPayload,
 } from "../types/user.types";
 
 export class UserService {
@@ -105,7 +106,9 @@ export class UserService {
     }
   }
 
-  static async getUsernamesMapByUids(uids: string[]): Promise<Record<string, string>> {
+  static async getUsernamesMapByUids(
+    uids: string[]
+  ): Promise<Record<string, string>> {
     if (uids.length === 0) return {};
 
     // สร้าง placeholders (?, ?, ...)
@@ -126,5 +129,39 @@ export class UserService {
       if (uid) map[uid] = username ?? "";
     }
     return map;
+  }
+  static async updateUserByAdmin(
+    uid: string,
+    payload: EditUserPayload
+  ): Promise<number> {
+    try {
+      const { username, birthday } = payload;
+
+      if (!username && !birthday) {
+        throw new Error("No fields to update");
+      }
+
+      const fields: string[] = [];
+      const values: any[] = [];
+
+      if (username) {
+        fields.push("username = ?");
+        values.push(username);
+      }
+      if (birthday) {
+        fields.push("birthday = ?");
+        values.push(birthday);
+      }
+
+      values.push(uid); // สำหรับ WHERE
+
+      const sql = `UPDATE users SET ${fields.join(", ")} WHERE uid = ?`;
+      const [result] = await pool.execute<ResultSetHeader>(sql, values);
+
+      return result.affectedRows;
+    } catch (error) {
+      console.error("Error in updateUserByAdmin:", error);
+      throw error;
+    }
   }
 }
