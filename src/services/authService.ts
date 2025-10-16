@@ -7,7 +7,11 @@ import { JwtPayload, UserRow, UserProfile } from "../types/auth.types";
 import { log } from "console";
 
 export class AuthService {
-   static async createFirebaseUser(email: string, password: string, username: string) {
+  static async createFirebaseUser(
+    email: string,
+    password: string,
+    username: string
+  ) {
     return await auth.createUser({
       email,
       password,
@@ -25,7 +29,10 @@ export class AuthService {
 
   static async getUserByUid(uid: string): Promise<UserRow | null> {
     const [rows] = await pool.query<(RowDataPacket & UserRow)[]>(
-      "SELECT role FROM users WHERE uid = ?  LIMIT 1",
+      `SELECT uid, role, status
+     FROM users
+     WHERE uid = ?
+     LIMIT 1`,
       [uid]
     );
 
@@ -54,7 +61,9 @@ export class AuthService {
       photo_url: user.photo_url || null,
       role: user.role,
       status: user.status,
-      birthday: user.birthday ? user.birthday.toISOString().split("T")[0] : null,
+      birthday: user.birthday
+        ? user.birthday.toISOString().split("T")[0]
+        : null,
     }));
   }
 
@@ -77,7 +86,7 @@ export class AuthService {
       INSERT INTO users (uid, email, username, photo_url, role, birthday, status, password)
       VALUES (?, ?, ?, ?, ?, ?, 'active', ?)
     `;
-    
+
     await pool.execute(sql, [
       userData.uid,
       userData.email,
@@ -99,7 +108,7 @@ export class AuthService {
       INSERT INTO users (uid, email, username, photo_url, role, status)
       VALUES (?, ?, ?, ?, 'member', 'active')
     `;
-    
+
     await pool.execute(sql, [
       userData.uid,
       userData.email,

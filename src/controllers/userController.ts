@@ -9,6 +9,7 @@ import {
   UserStatusSelf,
   ApiResponse,
   EditUserInfoBody,
+  EditUserPayload,
 } from "../types/user.types";
 
 import { AuthRequest } from "../middlewares/auth";
@@ -280,6 +281,58 @@ export const getUserInfo = async (req: Request, res: Response<ApiResponse>) => {
     return res.status(500).json({
       success: false,
       message: ERROR_MESSAGES.INTERNAL_ERROR,
+    });
+  }
+};
+export const editUserByAdmin = async (
+  req: AuthRequest,
+  res: Response<ApiResponse>
+) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: "Validation failed",
+        data: errors.array(),
+      });
+    }
+
+    const { uid } = req.params;
+    if (!uid) {
+      return res.status(400).json({
+        success: false,
+        message: "User UID is required",
+      });
+    }
+
+    // ✅ ไม่รับ email เลย
+    const { username, photo_url, birthday } = req.body as Partial<EditUserInfo>;
+
+    const payload: Partial<EditUserInfo> = {
+      username: username ?? undefined,
+      photo_url: photo_url ?? undefined,
+      birthday: birthday ?? undefined,
+    };
+
+    const affectedRows = await UserService.updateUserInfo(uid, payload);
+
+    if (affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: ERROR_MESSAGES.NO_CHANGES || "No changes or user not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: SUCCESS_MESSAGES.USER_UPDATED || "User updated successfully",
+    });
+  } catch (error) {
+    console.error("Error updating user info by admin:", error);
+    return res.status(500).json({
+      success: false,
+      message: ERROR_MESSAGES.INTERNAL_ERROR || "Internal server error",
     });
   }
 };
