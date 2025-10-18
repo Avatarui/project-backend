@@ -6,7 +6,8 @@ import type { JwtPayload as JWTPayloadBase } from "jsonwebtoken";
 export type Role = "admin" | "member";
 
 /** สถานะผู้ใช้ที่ระบบรองรับ */
-export type UserStatus = "active" | "suspend" | "deleted";
+export type UserStatus = "active" | "suspended" | "deleted";
+
 
 /** Payload ที่ใช้สำหรับส่งเข้า endpoint login ด้วยอีเมล */
 export interface LoginWithEmailRequest {
