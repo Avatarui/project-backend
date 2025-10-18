@@ -73,7 +73,7 @@ export const updateLatestAction = async (
 ) => {
   const { act_detail_id, action } = req.body;
   const uid = req.user?.uid;
-  console.log("Request body:", req.body);
+  // console.log("Request body:", req.body);
 
   if (!uid) return res.status(401).json({ message: "Unauthorized" });
   if (!act_detail_id)
