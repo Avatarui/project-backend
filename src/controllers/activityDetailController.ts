@@ -57,14 +57,14 @@ export const deleteActivityDetail = async (req: AuthRequest, res: Response) => {
   const act_detail_id_raw = req.query.act_detail_id;
   const act_detail_id = Number(act_detail_id_raw);
 
-  console.log(
-    "🔍 act_detail_id_raw =",
-    act_detail_id_raw,
-    "parsed =",
-    act_detail_id,
-    "uid =",
-    uid
-  );
+  // console.log(
+  //   "🔍 act_detail_id_raw =",
+  //   act_detail_id_raw,
+  //   "parsed =",
+  //   act_detail_id,
+  //   "uid =",
+  //   uid
+  // );
 
   if (!uid) return res.status(401).json({ message: "Unauthorized" });
   if (!act_detail_id || Number.isNaN(act_detail_id))
