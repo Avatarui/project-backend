@@ -33,7 +33,7 @@ export const authenticateToken = async (
 
     // ✅ บล็อกผู้ใช้ที่ไม่ active ตั้งแต่ middleware (ถ้านโยบายคุณต้องการ)
     if (userFromDB.status !== "active") {
-      console.warn(`[AUTH] 403 inactive user: uid=${decodedToken.uid} status=${userFromDB.status} ${req.method} ${req.originalUrl}`);
+      // console.warn(`[AUTH] 403 inactive user: uid=${decodedToken.uid} status=${userFromDB.status} ${req.method} ${req.originalUrl}`);
       return res.status(403).json({ message: "Account is not active", status: userFromDB.status });
     }
 
