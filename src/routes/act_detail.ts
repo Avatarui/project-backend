@@ -8,6 +8,7 @@ import {
   getOverallPercentController,
   getMyActivityDetails,
   getHistory,
+  getDailyPercentAllController,
   
 } from "../controllers/activityDetailController";
 import { authenticateToken } from "../middlewares/auth";
@@ -21,4 +22,5 @@ router.delete("/deleteActivityDetail", deleteActivityDetail);
 router.get('/daily-overall-percent', getOverallPercentController);
 router.get("/getActData", getActData); 
 router.get("/getHistory",getHistory);
+router.get('/dailyPercentAll', getDailyPercentAllController);
 export default router;

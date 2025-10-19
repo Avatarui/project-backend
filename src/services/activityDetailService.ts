@@ -184,3 +184,41 @@ export const getAllActivity = async (uid: string) => {
     throw error;
   }
 };
+export const getDailyPercentAll = async (
+  uid: string
+): Promise<{ date: string; percent: number }[]> => {
+  try {
+    const sql = `SELECT
+  t.d AS date,
+  LEAST(
+    (SUM(t.action_sum) / NULLIF(SUM(ad.goal), 0)) * 100,
+    100
+  ) AS percent
+FROM (
+  SELECT
+    DATE(ah.create_at) AS d,
+    ah.uid,
+    ah.act_detail_id,
+    SUM(ah.action) AS action_sum
+  FROM activity_history ah
+  WHERE ah.uid = ?
+  GROUP BY DATE(ah.create_at), ah.uid, ah.act_detail_id
+) AS t
+JOIN activity_detail ad
+  ON ad.act_detail_id = t.act_detail_id
+ AND ad.uid = t.uid
+GROUP BY t.d
+ORDER BY t.d;
+`;
+
+    const [rows] = await pool.execute(sql, [uid]);
+
+    return (rows as any[]).map((r) => ({
+      date: r.date,
+      percent: Number(r.percent) || 0,
+    }));
+  } catch (error) {
+    console.error("❌ Error in getDailyPercentAll:", error);
+    throw error;
+  }
+};

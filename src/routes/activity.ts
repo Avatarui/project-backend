@@ -27,11 +27,11 @@ const upload = multer({
 });
 const router = Router();
 
-router.get("/getAct", authenticateToken,getActivities);
+router.get("/getAct", authenticateToken, getActivities);
 router.post("/createAct", authenticateToken, createActivity);
 // router.post("/createAct", upload.single("act_pic"), createActivity);
-router.put("/updateAct", upload.single("act_pic"),updateActivity);
-router.post("/deleteAct", deleteActivity);
-router.get("/count",authenticateToken,countActivities); // /api/activity/count
-router.get("/summary", authenticateToken,getActivitySummary); // /api/activity/summary
+router.put("/updateAct", authenticateToken, updateActivity);
+router.post("/deleteAct", authenticateToken, deleteActivity);
+router.get("/count", authenticateToken, countActivities); // /api/activity/count
+router.get("/summary", authenticateToken, getActivitySummary); // /api/activity/summary
 export default router;

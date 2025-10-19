@@ -73,46 +73,46 @@ export const updateLatestAction = async (
 ) => {
   const { act_detail_id, action } = req.body;
   const uid = req.user?.uid;
-  console.log("Request body:", req.body);
 
   if (!uid) return res.status(401).json({ message: "Unauthorized" });
-  if (!act_detail_id)
-    return res.status(400).json({ message: "act_detail_id required" });
+  if (!act_detail_id) return res.status(400).json({ message: "act_detail_id required" });
 
   const act = Number(action);
   if (Number.isNaN(act) || act < 0)
     return res.status(400).json({ message: "action must be ≥ 0" });
 
   try {
-    const latest = await ActivityHistoryService.getLatestHistory(
-      uid,
-      act_detail_id
-    );
-    if (latest?.history_id) {
-      await ActivityHistoryService.deleteHistoryById(latest.history_id);
+    // 1️⃣ หา record ล่าสุดของ "วันนี้"
+    const latestToday = await ActivityHistoryService.getLatestHistoryToday(uid, act_detail_id);
+
+    if (latestToday) {
+      // 2️⃣ ถ้ามี → อัปเดตค่า action แถวนี้
+      await ActivityHistoryService.updateHistoryActionById(latestToday.history_id, act);
+    } else {
+      // 3️⃣ ถ้ายังไม่มี → แทรกใหม่วันนี้
+      if (act > 0) {
+        await ActivityHistoryService.insertActivityHistory(uid, act_detail_id, act);
+      }
     }
 
-    if (act > 0) {
-      await ActivityHistoryService.insertActivityHistory(
-        uid,
-        act_detail_id,
-        act
-      );
-    }
-
-    const todaySum = await ActivityHistoryService.getTodayActionSum(
-      uid,
-      act_detail_id
-    );
+    // 4️⃣ รวมผลวันนี้ + เป้า
+    const todaySum = await ActivityHistoryService.getTodayActionSum(uid, act_detail_id);
     const goal = await ActivityHistoryService.getGoal(uid, act_detail_id);
     const percent = goal ? Math.min((todaySum / goal) * 100, 100) : null;
 
-    return res.status(200).json({ act_detail_id, todaySum, goal, percent });
+    // ✅ ส่งชื่อฟิลด์ให้ตรงกับ Flutter
+    return res.status(200).json({
+      act_detail_id,
+      current_value: todaySum,
+      goal,
+      percent,
+    });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
 
 // ดึง percent/ todaySum
 export const getTodaySum = async (req: AuthRequest, res: Response) => {
@@ -164,25 +164,34 @@ export const getLatestActionValue = async (
   req: AuthRequest<{}, {}, {}>,
   res: Response
 ) => {
-  const { act_detail_id } = req.query;
   const uid = req.user?.uid;
 
   if (!uid) return res.status(401).json({ message: "Unauthorized" });
-  if (!act_detail_id)
+  if (!req.query.act_detail_id) {
     return res.status(400).json({ message: "act_detail_id required" });
+  }
+
+  // รองรับกรณี query เป็น string[] จาก Express
+  const actDetailIdRaw = Array.isArray(req.query.act_detail_id)
+    ? req.query.act_detail_id[0]
+    : req.query.act_detail_id;
+
+  // แปลงเป็น string ให้ชัดเจน (ถ้าฐานเป็น number ก็ส่ง number ได้เช่นกัน)
+  const actDetailId: string = String(actDetailIdRaw);
 
   try {
-    // ✅ แปลงให้แน่ใจว่าเป็น string
-    const id = String(act_detail_id);
+    // ✅ ดึงเฉพาะ "ล่าสุดของวันนี้"
+    const latestToday = await ActivityHistoryService.getLatestHistoryToday(uid, actDetailId);
 
-    const latest = await ActivityHistoryService.getLatestHistory(uid, id);
     return res.status(200).json({
-      act_detail_id: id,
-      latestAction: latest?.action ?? 0,
-      createdAt: latest?.create_at ?? null,
+      act_detail_id: actDetailId,
+      latestAction: latestToday?.action ?? 0,
+      createdAt: latestToday?.create_at ?? null,
+      scope: "today", // บอกให้ชัดว่าเป็นข้อมูลของวันนี้
     });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+

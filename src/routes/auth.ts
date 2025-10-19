@@ -20,9 +20,8 @@ const router = Router();
 router.post('/adminregister', registerValidation, adminRegister);
 router.post(
   '/registerwithemailpassword',
-  upload.single('profileImage'),   
-  registerValidation,              
-  register                        
+  registerValidation,   // (ถ้ามี) ตรวจ email/password ฯลฯ
+  register
 );
 
 router.post('/loginwithemail',loginWithEmail);

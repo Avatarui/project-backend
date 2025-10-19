@@ -7,17 +7,21 @@ import * as activityService from "../services/activityService";
  */
 
 export const createActivity = async (req: AuthRequest, res: Response) => {
-  const { uid: bodyUid, cate_id, act_name, act_pic } = req.body;
-  const role = req.user?.role;
-  const uid = role === "admin" ? bodyUid : req.user?.uid;
+  const { cate_id, act_name, act_pic } = req.body;
+
+  // ดึง uid จาก token (middleware authenticateToken ต้องใส่ก่อน)
+  const uid = req.user?.uid;
 
   if (!uid || !cate_id || !act_name || !act_pic) {
     return res.status(400).json({ message: "Missing required fields" });
   }
 
   try {
+    // ตรวจว่าหมวดหมู่ของ user มีอยู่จริงหรือไม่
     const exists = await activityService.checkCategoryExists(cate_id, uid);
-    if (!exists) return res.status(404).json({ message: "Category not found" });
+    if (!exists) {
+      return res.status(404).json({ message: "Category not found" });
+    }
 
     await activityService.createActivityDB(uid, cate_id, act_name, act_pic);
     return res.status(200).json({ message: "Activity created successfully" });
@@ -27,6 +31,7 @@ export const createActivity = async (req: AuthRequest, res: Response) => {
   }
 };
 
+
 /**
  * READ activities
  */
@@ -35,7 +40,7 @@ export const getActivities = async (req: AuthRequest, res: Response) => {
     const role = req.user?.role; // จาก middleware
     const uid = req.user?.uid; // จาก middleware
     const raw = req.query.cate_id as string | undefined;
-    console.log(role, uid, raw);
+    // console.log(role, uid, raw);
     if (!role || !uid)
       return res.status(401).json({ message: "Unauthenticated" });
     if (!raw) return res.status(400).json({ message: "cate_id is required" });
@@ -53,63 +58,16 @@ export const getActivities = async (req: AuthRequest, res: Response) => {
   }
 };
 
-/**
- * UPDATE activity
- */
-export const updateActivity = async (req: AuthRequest, res: Response) => {
-  const { act_id, act_name, act_pic } = req.body;
-  const role = req.user?.role;
-  const uid = req.user?.uid;
-
-  if (!act_id || !act_name || !act_pic)
-    return res.status(400).json({ message: "Missing required fields" });
-
-  try {
-    const allowed = await activityService.checkActivityPermission(
-      act_id,
-      uid,
-      role
-    );
-    if (!allowed)
-      return res
-        .status(404)
-        .json({ message: "Activity not found or no permission" });
-
-    await activityService.updateActivityDB(
-      act_id,
-      act_name,
-      act_pic,
-      uid,
-      role
-    );
-    return res.status(200).json({ message: "Activity updated successfully" });
-  } catch (error) {
-    console.error("Error updating activity:", error);
-    return res.status(500).json({ message: "Database error" });
-  }
-};
-
-/**
- * DELETE activity
- */
 export const deleteActivity = async (req: AuthRequest, res: Response) => {
-  const { act_id } = req.body;
+  const { act_id } = req.body;                // <- uid ไม่ต้อง
   const role = req.user?.role;
   const uid = req.user?.uid;
 
-  if (!act_id)
-    return res.status(400).json({ message: "Missing required fields" });
+  if (!act_id) return res.status(400).json({ message: "Missing required fields" });
 
   try {
-    const allowed = await activityService.checkActivityPermission(
-      act_id,
-      uid,
-      role
-    );
-    if (!allowed)
-      return res
-        .status(404)
-        .json({ message: "Activity not found or no permission" });
+    const allowed = await activityService.checkActivityPermission(act_id, uid, role);
+    if (!allowed) return res.status(404).json({ message: "Activity not found or no permission" });
 
     await activityService.deleteActivityDB(act_id, uid, role);
     return res.status(200).json({ message: "Activity deleted successfully" });
@@ -118,6 +76,27 @@ export const deleteActivity = async (req: AuthRequest, res: Response) => {
     return res.status(500).json({ message: "Database error" });
   }
 };
+
+export const updateActivity = async (req: AuthRequest, res: Response) => {
+  const { act_id, act_name, act_pic } = req.body;  // <- uid ไม่ต้อง
+  const role = req.user?.role;
+  const uid = req.user?.uid;
+
+  if (!act_id || !act_name || !act_pic)
+    return res.status(400).json({ message: "Missing required fields" });
+
+  try {
+    const allowed = await activityService.checkActivityPermission(act_id, uid, role);
+    if (!allowed) return res.status(404).json({ message: "Activity not found or no permission" });
+
+    await activityService.updateActivityDB(act_id, act_name, act_pic, uid, role);
+    return res.status(200).json({ message: "Activity updated successfully" });
+  } catch (error) {
+    console.error("Error updating activity:", error);
+    return res.status(500).json({ message: "Database error" });
+  }
+};
+
 export const countActivities = async (req: AuthRequest, res: Response) => {
   try {
     const role = req.user?.role;

@@ -13,9 +13,22 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   connectTimeout: 20000,
+  timezone: '+07:00', // 🇹🇭 แสดงผลเวลาตามไทยเมื่อ SELECT
   ssl: {
     ca: fs.readFileSync(path.join(__dirname, '../../isrgrootx1.pem')),
   },
 });
+
+// 🇹🇭 ตั้ง timezone ของ session ใน DB ทุกครั้งที่เริ่มต้น
+(async () => {
+  try {
+    const connection = await pool.getConnection();
+    await connection.query("SET time_zone = '+07:00'");
+    connection.release();
+    console.log('✅ MySQL timezone set to +07:00 (Asia/Bangkok)');
+  } catch (err) {
+    console.error('⚠️ Failed to set timezone:', err);
+  }
+})();
 
 export default pool;

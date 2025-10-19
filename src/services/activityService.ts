@@ -4,8 +4,8 @@ import { ActivityItemSummary, ActivitySummary } from "../types/activity";
 
 export const checkCategoryExists = async (cate_id: string, uid: string) => {
   const [rows] = await pool.execute(
-    "SELECT cate_id FROM category WHERE cate_id = ? AND uid = ?",
-    [cate_id, uid]
+    "SELECT cate_id FROM category WHERE cate_id = ? ",
+    [cate_id]
   );
   return (rows as any[]).length > 0;
 };
