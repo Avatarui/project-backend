@@ -10,12 +10,12 @@ export function guardActive(status: UserStatus) {
   if (status === "active") return;
 
   const err: any = new Error(
-    status === "suspend"
+    status === "suspended"
       ? "บัญชีถูกระงับชั่วคราว กรุณาติดต่อผู้ดูแลระบบ"
       : "บัญชีนี้ถูกลบแล้ว ไม่สามารถใช้งานได้"
   );
 
-  err.code = status === "suspend" ? "ACCOUNT_SUSPENDED" : "ACCOUNT_DELETED";
-  err.http = status === "suspend" ? 403 : 410; // 410 = Gone สำหรับ deleted
+  err.code = status === "suspended" ? "ACCOUNT_SUSPENDED" : "ACCOUNT_DELETED";
+  err.http = status === "suspended" ? 403 : 410; // 410 = Gone สำหรับ deleted
   throw err;
 }
