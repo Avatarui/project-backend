@@ -19,8 +19,8 @@ export class UserService {
   ): Promise<number> {
     try {
       // ✅ ลบ email ออก แม้ client จะส่งมา
-      const { username, photo_url, birthday } = userData;
-      // const { username, email, photo_url, birthday } = userData; // ❌ เดิม
+      // const { username, photo_url, birthday } = userData;
+      const { username, email, photo_url, birthday } = userData; // ❌ เดิม
 
       const fields: string[] = [];
       const values: any[] = [];
@@ -30,10 +30,10 @@ export class UserService {
         values.push(username ?? null);
       }
       // ❌ ลบส่วน email ทั้งหมด
-      // if (email !== undefined) {
-      //   fields.push("email = ?");
-      //   values.push(email ?? null);
-      // }
+      if (email !== undefined) {
+        fields.push("email = ?");
+        values.push(email ?? null);
+      }
       if (photo_url !== undefined) {
         fields.push("photo_url = ?");
         values.push(photo_url ?? null);
