@@ -6,24 +6,23 @@ import { convertDateFormat } from "../utils/dateHelper";
 import { JwtPayload, LoginWithEmailRequest } from "../types/auth.types";
 import { guardActive } from "../utils/guardActive";
 import { UserStatus } from "../types/auth.types";
+import { auth } from "../config/firebase"; // ✅ import จาก firebaseAdmin.ts
+
 
 export const register = async (req: Request, res: Response) => {
   try {
-    const { email, password, username, birthday } = req.body;
-    const file = req.file;
+    const { email, password, username, birthday, photoURL } = req.body;
 
     // สร้าง user ใน Firebase Auth
-    const userRecord = await AuthService.createFirebaseUser(
-      email,
-      password,
-      username
-    );
+    const userRecord = await AuthService.createFirebaseUser(email, password, username);
     const hashedPassword = await AuthService.hashPassword(password);
 
-    // path รูป (ถ้ามี upload)
-    let photoURL = "";
-    if (file) {
-      photoURL = `/uploads/profileImages/${file.filename}`;
+    // ใช้ URL จาก Firebase Storage
+    const photo = typeof photoURL === "string" ? photoURL : "";
+
+    // ✅ อัปเดตรูปใน Firebase Auth ผ่านตัวแปร auth
+    if (photo) {
+      await auth.updateUser(userRecord.uid, { photoURL: photo });
     }
 
     const formattedBirthday = birthday ? convertDateFormat(birthday) : null;
@@ -32,20 +31,20 @@ export const register = async (req: Request, res: Response) => {
       uid: userRecord.uid,
       email,
       username,
-      photoURL,
+      photoURL: photo,
       birthday: formattedBirthday,
       hashedPassword,
       role: "member",
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       message: "User registered successfully",
       uid: userRecord.uid,
-      photoURL,
+      photoURL: photo,
     });
   } catch (error: any) {
     console.error("Register error:", error);
-    res.status(500).json({ message: error.message || "Internal server error" });
+    return res.status(500).json({ message: error.message || "Internal server error" });
   }
 };
 
