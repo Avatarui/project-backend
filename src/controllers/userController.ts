@@ -45,11 +45,11 @@ export const editUserInfo = async (
     }
 
     // ✅ ไม่รับ email เลย
-    const { username, photo_url, birthday } = req.body as Partial<EditUserInfo>;
+    const {email, username, photo_url, birthday } = req.body as Partial<EditUserInfo>;
 
     const payload: Partial<EditUserInfo> = {
       username: username ?? undefined,
-      // email: email ?? undefined, // ❌ ลบบรรทัดนี้
+      email: email ?? undefined, // ❌ ลบบรรทัดนี้
       photo_url: photo_url ?? undefined,
       birthday: birthday ?? undefined,
     };
