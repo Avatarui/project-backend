@@ -132,7 +132,7 @@ export const countActivitiesDB = async (uid: string) => {
 };
 
 /** สรุปกิจกรรม: เทียบ total_action vs total_goal ต่อ act_detail_id ของ uid */
-export const getActivitySummaryDB = async (uid: string): Promise<ActivitySummary> => {
+export const getActivitySummaryDB = async (uid: string): Promise<ActivitySummary> => { 
   const [rows] = await pool.execute<RowDataPacket[]>(
     `
     WITH goals AS (
@@ -158,38 +158,35 @@ export const getActivitySummaryDB = async (uid: string): Promise<ActivitySummary
       INNER JOIN activity_detail ad ON ad.act_detail_id = ah.act_detail_id
       WHERE ad.uid = ?
       GROUP BY ah.act_detail_id
+    ),
+    results AS (
+      SELECT
+        g.act_detail_id,
+        g.total_goal,
+        COALESCE(a.total_action, 0) AS total_action,
+        CASE
+          WHEN COALESCE(a.total_action, 0) = g.total_goal THEN 1
+          ELSE 0
+        END AS is_success
+      FROM goals g
+      LEFT JOIN actions a ON a.act_detail_id = g.act_detail_id
     )
     SELECT
-      g.act_detail_id,
-      g.total_goal,
-      COALESCE(a.total_action, 0) AS total_action,
-      CASE
-        WHEN COALESCE(a.total_action, 0) = g.total_goal THEN 1
-        ELSE 0
-      END AS is_success
-    FROM goals g
-    LEFT JOIN actions a ON a.act_detail_id = g.act_detail_id
-    ORDER BY g.act_detail_id ASC
+      COUNT(*) AS total_activities,
+      SUM(CASE WHEN is_success = 1 THEN 1 ELSE 0 END) AS success_count,
+      SUM(CASE WHEN is_success = 0 THEN 1 ELSE 0 END) AS failed_count
+    FROM results;
     `,
     [uid, uid]
   );
 
-  const items: ActivityItemSummary[] = (rows as any[]).map((r) => ({
-    act_detail_id: Number(r.act_detail_id),
-    total_goal: Number(r.total_goal),
-    total_action: Number(r.total_action),
-    is_success: Number(r.is_success) === 1,
-  }));
-
-  const total_activities = await countActivitiesDB(uid);
-  const success_activities = items.reduce((acc, it) => acc + (it.is_success ? 1 : 0), 0);
-  const failed_activities = Math.max(total_activities - success_activities, 0);
+  const summary = rows[0];
 
   return {
     uid,
-    total_activities,
-    success_activities,
-    failed_activities,
-    items,
+    total_activities: Number(summary.total_activities) || 0,
+    success_activities: Number(summary.success_count) || 0,
+    failed_activities: Number(summary.failed_count) || 0,
+    items: [], // ตอนนี้ไม่ดึงรายแถว แต่ถ้าอยากเพิ่มภายหลังค่อยต่อ query แยกได้
   };
 };
