@@ -15,17 +15,17 @@ export interface User {
 }
 
 // ========== Enum Types ==========
-export type UserRole = 'admin' | 'member';
-export type UserStatus = 'active' | 'suspended' | 'deleted';
-export type UserStatusSelf = 'active' | 'suspended' | 'deleted'; // สำหรับ user เปลี่ยนสถานะตัวเอง
+export type UserRole = "admin" | "member";
+export type UserStatus = "active" | "suspended" | "deleted";
+export type UserStatusSelf = "active" | "suspended" | "deleted"; // สำหรับ user เปลี่ยนสถานะตัวเอง
 
 // ========== Authentication Types ==========
 export interface UserRegister {
   email: string;
   username: string;
-  password?: string; // optional เพราะอาจจะมาจาก Google Auth
+  password?: string;
   role?: UserRole;
-  birthday?: string; // format: DD/MM/YYYY (input) -> convert to YYYY-MM-DD
+  birthday?: string;
   photo_url?: string;
 }
 
@@ -52,6 +52,9 @@ export interface EditUserInfo {
 export interface ChangeUserStatus {
   uid: string;
   status: UserStatus;
+  // เพิ่ม 2 Properties นี้:
+  reason: string; // 👈 เหตุผลในการเปลี่ยนสถานะ (เรากำหนด Default ใน Controller แล้ว)
+  actionBy: string; // 👈 UID ของผู้ที่กระทำ (Admin หรือ User เอง)
 }
 
 export interface UpdateMyStatusRequest {
@@ -65,7 +68,7 @@ export interface ApiResponse<T = any> {
   data?: T;
 }
 
-export interface UserResponse extends Omit<User, 'password'> {
+export interface UserResponse extends Omit<User, "password"> {
   // User response without password field
 }
 
@@ -162,7 +165,7 @@ export interface JwtPayload {
 }
 
 // ========== Profile Types ==========
-export interface UserProfile extends Omit<User, 'password'> {
+export interface UserProfile extends Omit<User, "password"> {
   photo_url_full?: string; // full URL with server path
 }
 
@@ -185,35 +188,41 @@ export interface UserStatistics {
 
 // ========== Type Guards ==========
 export const isValidUserRole = (role: string): role is UserRole => {
-  return ['admin', 'member'].includes(role);
+  return ["admin", "member"].includes(role);
 };
 
 export const isValidUserStatus = (status: string): status is UserStatus => {
-  return ['active', 'suspended', 'deleted'].includes(status);
+  return ["active", "suspended", "deleted"].includes(status);
 };
 
-export const isValidUserStatusSelf = (status: string): status is UserStatusSelf => {
-  return ['active', 'suspended'].includes(status);
+export const isValidUserStatusSelf = (
+  status: string
+): status is UserStatusSelf => {
+  return ["active", "suspended"].includes(status);
 };
 
 // ========== Constants ==========
 export const USER_ROLES = {
-  ADMIN: 'admin' as const,
-  MEMBER: 'member' as const,
+  ADMIN: "admin" as const,
+  MEMBER: "member" as const,
 };
 
 export const USER_STATUSES = {
-  ACTIVE: 'active' as const,
-  SUSPENDED: 'suspended' as const,
-  DELETED: 'deleted' as const,
+  ACTIVE: "active" as const,
+  SUSPENDED: "suspended" as const,
+  DELETED: "deleted" as const,
 };
 
-export const VALID_ADMIN_STATUSES: UserStatus[] = ['active', 'suspended', 'deleted'];
-export const VALID_SELF_STATUSES: UserStatusSelf[] = ['active', 'suspended'];
+export const VALID_ADMIN_STATUSES: UserStatus[] = [
+  "active",
+  "suspended",
+  "deleted",
+];
+export const VALID_SELF_STATUSES: UserStatusSelf[] = ["active", "suspended"];
 
 // ========== Default Values ==========
-export const DEFAULT_USER_ROLE: UserRole = 'member';
-export const DEFAULT_USER_STATUS: UserStatus = 'active';
+export const DEFAULT_USER_ROLE: UserRole = "member";
+export const DEFAULT_USER_STATUS: UserStatus = "active";
 
 // Export all as named exports for better tree shaking
 export default {
