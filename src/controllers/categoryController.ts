@@ -33,7 +33,14 @@ export const addCategory = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    await CategoryService.addDefaultCategory(uid, cate_name, cate_pic);
+    const result = await CategoryService.addDefaultCategory(uid, cate_name, cate_pic);
+
+    if (result.duplicate) {
+      return res.status(400).json({
+        message: `ไม่สามารถเพิ่มหมวดหมู่ "${cate_name}" ได้ เนื่องจากมีอยู่แล้ว`,
+      });
+    }
+
     return res.status(200).json({ message: "Category created successfully" });
   } catch (error) {
     console.error("Error inserting category:", error);
@@ -90,7 +97,23 @@ export const deleteCategory = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    await CategoryService.deleteDefaultCategory(uid, Number(cate_id));
+    // ✅ เรียก checkCategoryUsage ก่อนลบ
+    const usage = await CategoryService.checkCategoryUsage(uid, Number(cate_id));
+    if (usage.inUse) {
+      return res.status(400).json({
+        code: "CATEGORY_IN_USE",
+        message: `ไม่สามารถลบหมวดหมู่ได้ เนื่องจากยังมีกิจกรรมในหมวดนี้อยู่ (${usage.activity_count} activity, ${usage.activity_detail_count} activity_detail)`,
+        details: usage,
+      });
+    }
+
+    // ✅ ถ้าไม่ถูกใช้งาน → ลบได้
+    const result: any = await CategoryService.deleteDefaultCategory(uid, Number(cate_id));
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Category not found" });
+    }
+
     return res.status(200).json({ message: "Category deleted successfully" });
   } catch (error) {
     console.error("Error deleting category:", error);

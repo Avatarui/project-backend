@@ -86,7 +86,7 @@ import { ActionLogService } from "../services/actionLogService";
 
 // ...
 export const changeUserStatus = async (
-  req: AuthRequest, // ใช้ AuthRequest เพื่อรู้ว่าใครเป็นคนกระทำ
+  req: AuthRequest,
   res: Response<ApiResponse>
 ) => {
   try {
@@ -99,36 +99,57 @@ export const changeUserStatus = async (
       });
     }
 
-    const { status, uid, reason } = req.body;
+    // 1. ดึงค่า status, uid และ reason เดิม (ถ้ามี)
+    const { status, uid, reason: originalReason } = req.body;
+    
+    // 2. กำหนดค่า reason ใหม่ตาม status
+    let reason: string;
+    
+    switch (status) {
+      case "suspended":
+        reason = originalReason || "ถูกระงับโดยผู้ดูแล";
+        break;
+      case "deleted":
+        reason = originalReason || "ถูกลบโดยผู้ดูแลเนื่องจากทำผิดกฎ";
+        break;
+      case "active":
+        reason = originalReason || "เปิดใช้งานบัญชีอีกครั้งโดยผู้ดูแล";
+        break;
+      default:
+        return res.status(400).json({
+          success: false,
+          message: "Invalid status",
+        });
+    }
+
 
     if (!VALID_ADMIN_STATUSES.includes(status)) {
-      return res
-        .status(400)
-        .json({ success: false, message: ERROR_MESSAGES.INVALID_STATUS });
+      return res.status(400).json({ 
+        success: false, 
+        message: ERROR_MESSAGES.INVALID_STATUS 
+      });
     }
 
     const userExists = await UserService.checkUserExists(uid);
     if (!userExists) {
-      return res
-        .status(404)
-        .json({ success: false, message: ERROR_MESSAGES.USER_NOT_FOUND });
+      return res.status(404).json({ 
+        success: false, 
+        message: ERROR_MESSAGES.USER_NOT_FOUND 
+      });
     }
 
-    const affectedRows = await UserService.updateUserStatus({ uid, status });
+    // 3. เรียกใช้ Service ด้วยค่า reason ที่ถูกกำหนดแล้ว
+    const affectedRows = await UserService.updateUserStatus({ 
+      uid, 
+      status,
+      reason: reason, // 👈 ใช้ตัวแปร reason ที่ถูกกำหนดเงื่อนไขแล้ว
+      actionBy: req.user!.uid  // Admin ที่ทำการเปลี่ยน
+    });
+
     if (affectedRows === 0) {
-      return res
-        .status(404)
-        .json({ success: false, message: ERROR_MESSAGES.NO_CHANGES });
-    }
-
-    // ✅ Insert Action Log
-    if (req.user) {
-      // ใน controller เช่น updateMyStatus หรือ changeUserStatus
-      await ActionLogService.insertActionLog({
-        target: req.user!.uid, // uid ของผู้ใช้ที่ถูกกระทำ
-        action: status as "active" | "suspended" | "deleted", // ✅ ตรงกับ ENUM
-        reason: reason || "",
-        actionBy: req.user!.uid, // uid ของผู้ที่กระทำ (กรณี user = ตัวเอง)
+      return res.status(404).json({ 
+        success: false, 
+        message: ERROR_MESSAGES.NO_CHANGES 
       });
     }
 
@@ -136,11 +157,13 @@ export const changeUserStatus = async (
       success: true,
       message: SUCCESS_MESSAGES.STATUS_UPDATED(status),
     });
+    
   } catch (error) {
     console.error("Error changing user status:", error);
-    return res
-      .status(500)
-      .json({ success: false, message: ERROR_MESSAGES.INTERNAL_ERROR });
+    return res.status(500).json({ 
+      success: false, 
+      message: ERROR_MESSAGES.INTERNAL_ERROR 
+    });
   }
 };
 
@@ -164,46 +187,45 @@ export const updateMyStatus = async (
     const { status, reason } = req.body;
 
     if (!VALID_SELF_STATUSES.includes(status)) {
-      return res
-        .status(400)
-        .json({ success: false, message: ERROR_MESSAGES.INVALID_STATUS });
+      return res.status(400).json({ 
+        success: false, 
+        message: ERROR_MESSAGES.INVALID_STATUS 
+      });
     }
 
     if (!req.user) {
-      return res
-        .status(401)
-        .json({ success: false, message: ERROR_MESSAGES.UNAUTHORIZED });
+      return res.status(401).json({ 
+        success: false, 
+        message: ERROR_MESSAGES.UNAUTHORIZED 
+      });
     }
 
+    // ✅ ส่ง actionBy เป็นตัวเอง
     const affectedRows = await UserService.updateUserStatus({
       uid: req.user.uid,
       status: status as UserStatus,
+      reason,
+      actionBy: req.user.uid  // User เปลี่ยน status ตัวเอง
     });
 
     if (affectedRows === 0) {
-      return res
-        .status(404)
-        .json({ success: false, message: ERROR_MESSAGES.NO_CHANGES });
+      return res.status(404).json({ 
+        success: false, 
+        message: ERROR_MESSAGES.NO_CHANGES 
+      });
     }
-
-    // ✅ Insert Action Log
-    // ใน controller เช่น updateMyStatus หรือ changeUserStatus
-    await ActionLogService.insertActionLog({
-      target: req.user!.uid, // uid ของผู้ใช้ที่ถูกกระทำ
-      action: status as "active" | "suspended" | "deleted", // ✅ ตรงกับ ENUM
-      reason: reason || "",
-      actionBy: req.user!.uid, // uid ของผู้ที่กระทำ (กรณี user = ตัวเอง)
-    });
 
     return res.status(200).json({
       success: true,
       message: SUCCESS_MESSAGES.SELF_STATUS_UPDATED(status),
     });
+    
   } catch (error) {
     console.error("Error updating user status:", error);
-    return res
-      .status(500)
-      .json({ success: false, message: ERROR_MESSAGES.INTERNAL_ERROR });
+    return res.status(500).json({ 
+      success: false, 
+      message: ERROR_MESSAGES.INTERNAL_ERROR 
+    });
   }
 };
 
