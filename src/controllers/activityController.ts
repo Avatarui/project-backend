@@ -8,6 +8,36 @@ import * as activityService from "../services/activityService";
 
 export const createActivity = async (req: AuthRequest, res: Response) => {
   const { cate_id, act_name, act_pic } = req.body;
+  const uid = req.user?.uid;
+
+  if (!uid || !cate_id || !act_name || !act_pic) {
+    return res.status(400).json({ message: "Missing required fields" });
+  }
+
+  try {
+    // ตรวจว่าหมวดหมู่ของ user มีอยู่จริงหรือไม่
+    const exists = await activityService.checkCategoryExists(cate_id, uid);
+    if (!exists) {
+      return res.status(404).json({ message: "Category not found" });
+    }
+
+    // ✅ ตรวจว่าชื่อ activity ซ้ำไหม
+    const duplicate = await activityService.checkDuplicateActivity(uid, cate_id, act_name);
+    if (duplicate) {
+      return res.status(400).json({
+        message: `ไม่สามารถสร้างกิจกรรม "${act_name}" ได้ เพราะมีอยู่แล้วในหมวดนี้`,
+      });
+    }
+
+    await activityService.createActivityDB(uid, cate_id, act_name, act_pic);
+    return res.status(200).json({ message: "Activity created successfully" });
+  } catch (error) {
+    console.error("Error creating activity:", error);
+    return res.status(500).json({ message: "Database error" });
+  }
+};  
+export const createActivityAdmin = async (req: AuthRequest, res: Response) => {
+  const { cate_id, act_name, act_pic } = req.body;
 
   // ดึง uid จาก token (middleware authenticateToken ต้องใส่ก่อน)
   const uid = req.user?.uid;
@@ -21,6 +51,12 @@ export const createActivity = async (req: AuthRequest, res: Response) => {
     const exists = await activityService.checkCategoryExists(cate_id, uid);
     if (!exists) {
       return res.status(404).json({ message: "Category not found" });
+    }
+    const duplicate = await activityService.checkDuplicateActivity(uid, cate_id, act_name);
+    if (duplicate) {
+      return res.status(400).json({
+        message: `ไม่สามารถสร้างกิจกรรม "${act_name}" ได้ เพราะมีอยู่แล้วในหมวดนี้`,
+      });
     }
 
     await activityService.createActivityDB(uid, cate_id, act_name, act_pic);
@@ -59,15 +95,27 @@ export const getActivities = async (req: AuthRequest, res: Response) => {
 };
 
 export const deleteActivity = async (req: AuthRequest, res: Response) => {
-  const { act_id } = req.body;                // <- uid ไม่ต้อง
+  const { act_id } = req.body;           // uid ไม่ต้อง
   const role = req.user?.role;
   const uid = req.user?.uid;
 
   if (!act_id) return res.status(400).json({ message: "Missing required fields" });
 
   try {
+    // สิทธิ์เข้าถึงอยู่ก่อนเหมือนเดิม
     const allowed = await activityService.checkActivityPermission(act_id, uid, role);
     if (!allowed) return res.status(404).json({ message: "Activity not found or no permission" });
+
+    // ✅ กฏใหม่: ถ้าเป็น admin ต้องไม่มี activity_detail ผูกอยู่
+    if (role === "admin") {
+      const { total } = await activityService.countActivityDetails(act_id);
+      if (total > 0) {
+        return res.status(400).json({
+          message: `ไม่สามารถลบกิจกรรมได้ เพราะยังมี ${total} รายการใน activity_detail ที่ใช้งานอยู่`,
+          details_in_use: total,
+        });
+      }
+    }
 
     await activityService.deleteActivityDB(act_id, uid, role);
     return res.status(200).json({ message: "Activity deleted successfully" });
@@ -76,6 +124,7 @@ export const deleteActivity = async (req: AuthRequest, res: Response) => {
     return res.status(500).json({ message: "Database error" });
   }
 };
+
 
 export const updateActivity = async (req: AuthRequest, res: Response) => {
   const { act_id, act_name, act_pic } = req.body;  // <- uid ไม่ต้อง

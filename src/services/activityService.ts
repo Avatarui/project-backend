@@ -10,16 +10,31 @@ export const checkCategoryExists = async (cate_id: string, uid: string) => {
   return (rows as any[]).length > 0;
 };
 
+export const checkDuplicateActivity = async (
+  uid: string,
+  cate_id: number,
+  act_name: string
+) => {
+  const sql = `
+    SELECT act_id
+    FROM activity
+    WHERE uid = ? AND cate_id = ? AND act_name = ?
+  `;
+  const [rows] = await pool.execute(sql, [uid, cate_id, act_name]);
+  return (rows as any[]).length > 0;
+};
+
 export const createActivityDB = async (
   uid: string,
   cate_id: string,
   act_name: string,
   act_pic: string
 ) => {
-  await pool.execute(
-    "INSERT INTO activity (uid, cate_id, act_name, act_pic) VALUES (?, ?, ?, ?)",
-    [uid, cate_id, act_name, act_pic]
-  );
+  const sql = `
+    INSERT INTO activity (uid, cate_id, act_name, act_pic)
+    VALUES (?, ?, ?, ?)
+  `;
+  await pool.execute(sql, [uid, cate_id, act_name, act_pic]);
 };
 
 export const getActivitiesDB = async (
@@ -120,6 +135,12 @@ export const deleteActivityDB = async (
   }
 
   await pool.execute(sql, params);
+};
+export const countActivityDetails = async (act_id: number) => {
+  const sql = `SELECT COUNT(*) AS total FROM activity_detail WHERE act_id = ?`;
+  const [rows] = await pool.execute(sql, [act_id]);
+  const total = (rows as any)[0]?.total ?? 0;
+  return { total };
 };
 export const countActivitiesDB = async (uid: string) => {
   const [rows] = await pool.execute<RowDataPacket[]>(

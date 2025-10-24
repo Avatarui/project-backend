@@ -61,22 +61,57 @@ export class UserService {
    * อัปเดตสถานะผู้ใช้
    */
   static async updateUserStatus(data: ChangeUserStatus): Promise<number> {
+    const connection = await pool.getConnection();
+
     try {
-      const { uid, status } = data;
+      await connection.beginTransaction();
 
-      const sql = `
-        UPDATE users 
-        SET status = ? 
-        WHERE uid = ? AND status != ?
-      `;
+      const { uid, status, reason, actionBy } = data;
 
-      const [result]: any = await pool.execute(sql, [status, uid, status]);
-      return result.affectedRows;
+      // 1) ดึงข้อมูล user (กัน user ไม่มี)
+      const [users] = await connection.execute<RowDataPacket[]>(
+        "SELECT uid, email, username FROM users WHERE uid = ?",
+        [uid]
+      );
+      if (users.length === 0) {
+        throw new Error("User not found");
+      }
+
+      // 2) log การกระทำ
+      await connection.execute(
+        `INSERT INTO action_log (target, action, reason, action_by)
+       VALUES (?, ?, ?, ?)`,
+        [uid, status, reason || "", actionBy]
+      );
+
+      // 3) ดำเนินการกับ user ตามสถานะ
+      let result: any;
+      if (status === "deleted") {
+        // ลบผู้ใช้ (จะ CASCADE ไปตารางลูกตาม FK)
+        [result] = await connection.execute("DELETE FROM users WHERE uid = ?", [
+          uid,
+        ]);
+      } else if (status === "suspended" || status === "active") {
+        // อัปเดตสถานะ
+        [result] = await connection.execute(
+          "UPDATE users SET status = ? WHERE uid = ?",
+          [status, uid]
+        );
+      } else {
+        throw new Error(`Invalid status: ${status}`);
+      }
+
+      await connection.commit();
+      return result.affectedRows ?? 0;
     } catch (error) {
+      await connection.rollback();
       console.error("Error in updateUserStatus:", error);
       throw error;
+    } finally {
+      connection.release();
     }
   }
+
   static async checkUserExists(uid: string): Promise<boolean> {
     try {
       const [rows]: any = await pool.execute(
